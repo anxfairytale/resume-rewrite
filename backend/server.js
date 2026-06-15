@@ -8,6 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/generated", express.static("generated"));
+app.use("/uploads", express.static("uploads"));
 app.use('/', routes);
 if (!fs.existsSync("uploads")) {
   fs.mkdirSync("uploads");

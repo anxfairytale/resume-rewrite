@@ -1,86 +1,142 @@
-const express = require("express");
-const router = express.Router();
-const multer = require("multer");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
+const db = require("../model");
+const Resume = db.Resume;
+const { applyResumeTemplate } = require("../pdfTemplates/resumeTemplates");
 const OpenAI = require("openai");
 const pdfParse = require("pdf-parse");
-const { applyResumeTemplate } = require("../pdfTemplates/resumeTemplates")
-const authenticateToken = require("../middleware/authMiddleware")
-const db = require('../model/index')
-const Resume = db.Resume;
-console.log("Resume controller loaded");
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-})
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
 });
-const upload = multer({ storage: storage });
-async function rewriteResumeWithAI(extractedResumeText, jobDescription, skills) {
-  const response = await client.responses.create({
-    model: "gpt-4.1-mini",
-    instructions: `You are an expert resume writer.
-
-Your job is to rewrite resumes honestly based only on the candidate's uploaded resume content.
-
-Rules:
-- Do not invent fake companies, fake experience, fake education, or fake achievements.
-- Improve wording, clarity, formatting, and relevance.
-- Tailor the resume to the target job description.
-- Use the extra skills only if they fit the candidate's resume.
-- Keep the tone professional and ATS-friendly.
-- Return only the rewritten resume content.
-- Do not include explanations before or after the resume.
-`, input: `
-UPLOADED RESUME TEXT:
-${extractedResumeText}
-TARGET JOB DESCRIPTION:
-${jobDescription || "No job description provided"}
-EXTRA SKILLS TO HIGHLIGHT:
-${skills || "No extra skills provided."}
-Now rewrite the resume in this format:
-FULL NAME
-Email | Phone | LinkedIn | GitHub/Portfolio
-
-PROFESSIONAL SUMMARY
-
-KEY SKILLS
-
-PROJECTS / EXPERIENCE
-
-EDUCATION
-
-CERTIFICATIONS / ACHIEVEMENTS
-
-ADDITIONAL DETAILS`
-  });
-  return response.output_text;
+console.log("Resume controller loaded");
+async function extractTextFromPdf(filePath) {
+  const dataBuffer = fs.readFileSync(filePath);
+  const pdfData = await pdfParse(dataBuffer);
+  return pdfData.text;
 }
-router.get('/test', (req, res) => {
-  res.send("i work");
-})
-router.post("/upload", authenticateToken, upload.single("resume"), async (req, res) => {
-  try {
-    console.log("BODY DATA:", req.body);
-    console.log("FILE DATA:", req.file);
+function ensureFolder(folderPath) {
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, {
+      recursive: true,
+    });
+  }
+}
 
-    const { jobDescription, skills, consent, template } = req.body;
-    const selectedTemplate = template || "modern";
+function splitSkills(skills) {
+  if (!skills) return [];
 
-    if (consent !== "true") {
-      return res.status(403).json({
-        message: "You must accept the terms and conditions before generating.",
-      });
+  return skills
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+}
+
+function getRoleFromJobDescription(jobDescription) {
+  const lower = jobDescription.toLowerCase();
+
+  if (lower.includes("mainframe")) return "Mainframe Support Engineer";
+  if (lower.includes("react")) return "React Developer";
+  if (lower.includes("node")) return "Node.js Developer";
+  if (lower.includes("frontend")) return "Frontend Developer";
+  if (lower.includes("backend")) return "Backend Developer";
+  if (lower.includes("full stack") || lower.includes("fullstack")) return "Full Stack Developer";
+  if (lower.includes("data analyst")) return "Data Analyst";
+
+  return "Professional Candidate";
+}
+
+async function createStructuredResumeDataWithAI({ resumeText, jobDescription, skills, user }) {
+  const prompt = `
+You are an expert resume writer and ATS optimization specialist.
+
+Your task:
+Read the candidate's resume and the target job description.
+Create a polished, employer-catching, ATS-friendly resume structure.
+
+Important rules:
+- Do not invent fake companies, fake degrees, fake certifications, or fake years.
+- You may improve wording, clarity, impact, and alignment with the job.
+- Use the candidate's real experience from the resume text.
+- If a detail is missing, leave it blank or use a safe placeholder.
+- Tailor the summary, skills, experience bullets, and projects to the job description.
+- Use strong action verbs.
+- Keep bullets concise and professional.
+- Return ONLY valid JSON.
+- No markdown.
+- No explanation.
+
+Candidate user details:
+Name: ${user?.name || ""}
+Email: ${user?.email || ""}
+
+Extra skills/notes typed by user:
+${skills || "None"}
+
+Target job description:
+${jobDescription}
+
+Candidate resume text:
+${resumeText}
+
+Return JSON in this exact structure:
+{
+  "fullName": "",
+  "title": "",
+  "email": "",
+  "phone": "",
+  "location": "",
+  "linkedin": "",
+  "portfolio": "",
+  "summary": "",
+  "skills": [],
+  "experience": [
+    {
+      "role": "",
+      "company": "",
+      "duration": "",
+      "bullets": []
     }
+  ],
+  "projects": [
+    {
+      "name": "",
+      "description": ""
+    }
+  ],
+  "education": [
+    {
+      "degree": "",
+      "institution": "",
+      "year": ""
+    }
+  ],
+  "certifications": [],
+  "achievements": []
+}
+`;
 
+  const response = await client.responses.create({
+    model: "gpt-5.5",
+    input: prompt,
+  });
+
+  const text = response.output_text;
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.log("AI JSON parse error:", err);
+    console.log("AI raw response:", text);
+    throw new Error("AI returned invalid JSON");
+  }
+}
+exports.analyzeResume = async (req, res) => {
+  try {
+    console.log("ANALYZE BODY:", req.body);
+    console.log("ANALYZE FILE:", req.file);
+
+    const { jobDescription, skills } = req.body;
     const resumeFile = req.file;
 
     if (!resumeFile) {
@@ -89,60 +145,99 @@ router.post("/upload", authenticateToken, upload.single("resume"), async (req, r
       });
     }
 
-    const pdfBuffer = fs.readFileSync(resumeFile.path);
-    const pdfData = await pdfParse(pdfBuffer);
-    const extractedResumeText = pdfData.text;
-
-    if (!extractedResumeText || extractedResumeText.trim().length === 0) {
+    if (!jobDescription || !jobDescription.trim()) {
       return res.status(400).json({
-        message:
-          "Could not extract text from this PDF. It may be scanned or image-based.",
+        message: "Job description is required",
       });
     }
 
-    const rewrittenResume = await rewriteResumeWithAI(
-      extractedResumeText,
+    const resumeText = await extractTextFromPdf(resumeFile.path);
+
+    if (!resumeText || resumeText.trim().length < 50) {
+      return res.status(400).json({
+        message: "Could not read enough text from this PDF. Please upload a text-based resume PDF.",
+      });
+    }
+
+    const resumeData = await createStructuredResumeDataWithAI({
+      resumeText,
       jobDescription,
-      skills
-    );
+      skills,
+      user: req.user,
+    });
+
+    res.json({
+      message: "AI resume sections generated successfully",
+      resumeData,
+      originalFileName: resumeFile.originalname,
+      originalFilePath: resumeFile.path,
+      jobDescription,
+      skills,
+    });
+  } catch (err) {
+    console.log("Analyze resume error:", err);
+
+    res.status(500).json({
+      message: err.message || "Something went wrong while analyzing resume",
+    });
+  }
+};
+
+exports.generateFinalPdf = async (req, res) => {
+  try {
+    const {
+      resumeData,
+      template,
+      originalFileName,
+      originalFilePath,
+      jobDescription,
+      skills,
+    } = req.body;
+
+    if (!resumeData) {
+      return res.status(400).json({
+        message: "Resume data is required",
+      });
+    }
+
+    const selectedTemplate = template || "executive";
+
+    const generatedFolder = path.join(__dirname, "..", "generated");
+    ensureFolder(generatedFolder);
 
     const generatedFileName = `resume-${Date.now()}.pdf`;
-    const generatedPath = path.join("generated", generatedFileName);
+    const generatedPdfPath = path.join(generatedFolder, generatedFileName);
 
     const doc = new PDFDocument({
       size: "A4",
       margin: 50,
     });
 
-    const stream = fs.createWriteStream(generatedPath);
-
+    const stream = fs.createWriteStream(generatedPdfPath);
     doc.pipe(stream);
 
-    applyResumeTemplate(doc, selectedTemplate, rewrittenResume);
+    applyResumeTemplate(doc, selectedTemplate, resumeData);
 
     doc.end();
 
     stream.on("finish", async () => {
-      const pdfUrl = `http://localhost:5000/generated/${generatedFileName}`;
+      const generatedPdfUrl = `http://localhost:5000/generated/${generatedFileName}`;
+
       await Resume.create({
         userId: req.user.id,
-        originalFileName: resumeFile.originalname,
-        originalFilePath: resumeFile.path,
-        jobDescription,
-        skills,
-        rewrittenResume,
-        generatedPdfPath:generatedPath,
-        generatedPdfUrl: pdfUrl,
+        originalFileName: originalFileName || null,
+        originalFilePath: originalFilePath || null,
+        jobDescription: jobDescription || null,
+        skills: skills || null,
+        resumeData: JSON.stringify(resumeData),
+        generatedPdfPath,
+        generatedPdfUrl,
         template: selectedTemplate,
-      })
+      });
+
       res.json({
-        message: "Resume received and PDF generated",
-        skills,
-        selectedTemplate,
-        fileName: resumeFile.originalname,
-        savedAs: resumeFile.filename,
-        rewrittenResume,
-        pdfUrl,
+        message: "Final PDF generated successfully",
+        pdfUrl: generatedPdfUrl,
       });
     });
 
@@ -150,32 +245,42 @@ router.post("/upload", authenticateToken, upload.single("resume"), async (req, r
       console.log("PDF stream error:", err);
 
       res.status(500).json({
-        message: "PDF generation failed",
+        message: "Could not create PDF",
       });
     });
   } catch (err) {
-    console.log(err);
+    console.log("Generate final PDF error:", err);
 
     res.status(500).json({
-      message: "Something went wrong on the server",
+      message: "Something went wrong while generating final PDF",
     });
   }
-}
-);
-router.get("/my-resumes",authenticateToken,async(req,res)=>{
-  try{
-    const resumes=await Resume.findAll({
-      where:{
-        userId:req.user.id,
+};
+
+exports.getMyResumes = async (req, res) => {
+  try {
+    const resumes = await Resume.findAll({
+      where: {
+        userId: req.user.id,
       },
-      order:[["createdAt","DESC"]]
-    })
-    res.json(resumes);
-  }catch(err){
-    console.log("Fetching error",err);
-     res.status(500).json({
+      order: [["createdAt", "DESC"]],
+    });
+
+    const formattedResumes = resumes.map((resume) => {
+      const plain = resume.toJSON();
+
+      return {
+        ...plain,
+        resumeData: plain.resumeData ? JSON.parse(plain.resumeData) : null,
+      };
+    });
+
+    res.json(formattedResumes);
+  } catch (err) {
+    console.log("Fetch my resumes error:", err);
+
+    res.status(500).json({
       message: "Could not fetch resumes",
     });
   }
-})
-module.exports = router;
+};
