@@ -16,7 +16,7 @@ if (!fs.existsSync("uploads")) {
 if (!fs.existsSync("generated")) {
   fs.mkdirSync("generated");
 }
-db.sequelize.sync({})
+db.sequelize.sync()
 .then(()=>{
   console.log('Database Connection Successful');
   app.listen(5000, () => {

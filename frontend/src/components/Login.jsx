@@ -75,7 +75,12 @@ function Login() {
       if (!isSignup) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-        window.location.href = "/home";
+        if(res.data.user.role==='admin'){
+          window.location.href = "/users";
+        }
+        else{
+          window.location.href = "/home";
+         }
       } else {
         setIsSignup(false);
         setPassword("");

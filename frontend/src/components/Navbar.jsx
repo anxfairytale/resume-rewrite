@@ -6,6 +6,8 @@ function Navbar() {
   const navigate = useNavigate();
   const storedUser=localStorage.getItem("user");
   const user=storedUser?JSON.parse(storedUser):null;
+  const role=user.role
+  console.log(role);
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -22,11 +24,14 @@ function Navbar() {
         </div>
       </div>
       <nav className="right-side">
-         <p className="user-greet">{`Hello ${user.name}`}</p>
-        <button className="nav-btn" onClick={() => navigate("/home")}>
+        <p className="user-greet">{`Hello ${user.name}`}</p>
+        {role==="user" &&(<button className="nav-btn" onClick={() => navigate("/home")}>
           Home
-        </button>
-
+        </button>)} 
+        {role=="admin" && (<button className="nav-btn" onClick={()=>navigate("/users")}>
+          Users
+        </button>)}
+        
         <button className="nav-btn" onClick={() => navigate("/profile")}>
           Profile
         </button>

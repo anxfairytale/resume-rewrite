@@ -4,9 +4,13 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer")
 const db = require('../model/index')
 const router = express.Router();
+const authorizeAdmin=require("../middleware/adminMiddleware")
 const authenticateToken = require("../middleware/authMiddleware");
 const User = db.User;
+const Resume=db.Resume;
 const otpStore = {}
+const verifiedEmails={}
+const verifiedPhones={}
 const transporter = nodemailer.createTransport({
     host:"smtp.office365.com",
     port: 587,
@@ -22,6 +26,46 @@ const transporter = nodemailer.createTransport({
       rejectUnauthorized:false
     }
 });
+router.get('/users',authenticateToken,authorizeAdmin,async(req,res)=>{
+  try{
+    const users=await User.findAll({
+        include:[{
+          model:Resume,
+        }],
+        order:[["createdAt","DESC"]]
+    });
+    const formattedUsers=users.map((user)=>{
+      const plainUser=user.toJSON();
+      const resumes=plainUser.Resumes || plainUser.resumes||[];
+      return{
+        id:plainUser.id,
+        name:plainUser.name,
+        email:plainUser.email,
+        phone:plainUser.phone||"Not provided",
+        emailStatus:plainUser.isEmailVerified?"Verified":"Not Verified",
+        phoneStatus:plainUser.isPhoneVerified?"Verified":"Not Verified",
+        plan:plainUser.plan,
+        isBlocked: plainUser.isBlocked,
+
+        freeUsesLeft: plainUser.freeUsesLeft,
+        proUsesLeft: plainUser.proUsesLeft,
+        totalUses: plainUser.totalUses,
+
+        resumesGenerated: resumes.length,
+
+        registeredAt: plainUser.createdAt,
+        lastUsedAt:
+          resumes.length > 0
+            ? resumes[resumes.length - 1].createdAt
+            : null
+      }
+    });
+    res.json(formattedUsers);
+  }catch(err){
+    console.log(err);
+    res.json(err);
+  }
+})
 router.post('/send-otp', async (req, res) => {
   try {
     const { email } = req.body
@@ -58,11 +102,36 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(404).json({message:'Incorrect otp'});
     }
     delete otpStore[email];
+    verifiedEmails[email]=true;
     return res.json({
       message:'Success'
     })
   }catch(err){
     console.log(err);
+  }
+})
+router.patch("/users/:id/block",async(req,res)=>{
+  try{
+    const{id}=req.params;
+    const user=await User.findByPk(id);
+    if(!user){
+      return res.status(404).json({
+        message:"User not found"
+      });
+    }
+    user.isBlocked=!user.isBlocked;
+    await user.save();
+    res.json({
+      message: user.isBlocked
+        ? "User blocked successfully"
+        : "User unblocked successfully",
+      user,
+    });
+  }catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: err.message,
+    });
   }
 })
 function calculateAge(dob) {
@@ -161,7 +230,8 @@ router.post("/signup", async (req, res) => {
       password: hashedPassword,
       phone: number,
       dob,
-      location
+      location,
+      isEmailVerified: verifiedEmails[email]
     })
     res.status(201).json({
       message: "Signup successful",
@@ -181,7 +251,6 @@ router.post("/signup", async (req, res) => {
     });
   }
 });
-
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -203,7 +272,11 @@ router.post("/login", async (req, res) => {
         message: "Invalid email or password",
       });
     }
-
+    if(user.isBlocked){
+      return res.status(403).json({
+        message:"Your account has been blocked.Please contact admin.",
+      })
+    }
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
@@ -211,12 +284,13 @@ router.post("/login", async (req, res) => {
         message: "Invalid email or password",
       });
     }
-
+    
     const token = jwt.sign(
       {
         id: user.id,
         name: user.name,
         email: user.email,
+        role:user.role
       },
       process.env.JWT_SECRET,
       {
@@ -230,6 +304,7 @@ router.post("/login", async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        role:user.role
       },
     });
   } catch (err) {

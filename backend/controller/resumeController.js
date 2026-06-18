@@ -3,7 +3,7 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 const db = require("../model");
-const User=db.User;
+const User = db.User;
 const Resume = db.Resume;
 const { applyResumeTemplate } = require("../pdfTemplates/resumeTemplates");
 const OpenAI = require("openai");
@@ -126,11 +126,11 @@ ${jobDescription}
     temperature: 0.3
   });
   const content = response.choices[0].message.content;
-  try{
+  try {
     return JSON.parse(content);
-  }catch(err){
-    console.log("AI match JSON parse error: ",err);
-    console.log("AI returned: ",content);
+  } catch (err) {
+    console.log("AI match JSON parse error: ", err);
+    console.log("AI returned: ", content);
     return {
       matchPercentage: 0,
       summary: "Could not generate a reliable match analysis for this resume.",
@@ -282,6 +282,27 @@ router.post("/analyze", authenticateToken, upload.single("resume"), async (req, 
         message: "Job description is required",
       });
     }
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+    if (user.isBlocked) {
+      return res.status(403).json({
+        message: "Your account has been blocked."
+      })
+    }
+    if (user.plan === "free" && user.freeUsesLeft <= 0) {
+      return res.status(403).json({
+        message: "Your free trial is over. Please upgrade to pro.",
+      });
+    }
+    if (user.plan === "pro" && user.proUsesLeft <= 0) {
+      return res.status(403).json({
+        messsage: "Your pro credits are over. Please purchase again"
+      })
+    }
     const resumeText = await extractTextFromPdf(resumeFile.path);
     if (!resumeText || resumeText.trim().length < 50) {
       return res.status(400).json({
@@ -294,8 +315,7 @@ router.post("/analyze", authenticateToken, upload.single("resume"), async (req, 
       skills,
       user: req.user,
     });
-    const user=await User.findByPk(req.user.id);
-    const matchAnalysis=await analyzeResumeMatch({resumeData,jobDescription,skills,userLocation:user.location||"Not provided"})
+    const matchAnalysis = await analyzeResumeMatch({ resumeData, jobDescription, skills, userLocation: user.location || "Not provided" })
     res.json({
       message: "AI resume sections generated successfully",
       resumeData,
@@ -305,6 +325,15 @@ router.post("/analyze", authenticateToken, upload.single("resume"), async (req, 
       jobDescription,
       skills,
     });
+    if (user.plan === "free") {
+      user.freeUsesLeft -= 1
+    }
+    if (user.plan === "pro") {
+      user.proUsesLeft -= 1;
+    }
+    user.totalUses += 1;
+
+    await user.save();
   } catch (err) {
     console.log("Analyze resume error:", err);
     res.status(500).json({
