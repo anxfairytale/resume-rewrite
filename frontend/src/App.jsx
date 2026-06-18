@@ -5,10 +5,14 @@ import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Profile from "./components/Profile";
 import MainLayout from "./components/MainLayout";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 function App() {
 
   return (
-    <BrowserRouter>
+    <>
+     <ToastContainer position="top-right" autoClose={2000} />
+     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login/>}/>
         <Route element={<ProtectedRoute>
@@ -19,7 +23,9 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </>
   );
+    
 }
 
 export default App;

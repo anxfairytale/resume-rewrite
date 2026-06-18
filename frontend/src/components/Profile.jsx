@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/Profile.css";
-
+import { toast } from "react-toastify";
 function Profile() {
   const [profile, setProfile] = useState(null);
   const [editMode, setEditMode] = useState(false);
 
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
-
+  const [loc, setLoc]=useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [resumes, setResumes] = useState([]);
@@ -23,22 +23,13 @@ function Profile() {
       setResumes(res.data);
     } catch (err) {
       console.log(err);
-      showToast("Could not load resume history", "error");
+    ("Could not load resume history", "error");
     }
   }
   useEffect(() => {
     fetchProfile();
     fetchMyResumes();
   }, []);
-  function showToast(text, type = "success") {
-    setMessage(text);
-    setMessageType(type);
-
-    setTimeout(() => {
-      setMessage("");
-      setMessageType("");
-    }, 3000);
-  }
 
   async function fetchProfile() {
     try {
@@ -52,10 +43,11 @@ function Profile() {
 
       setProfile(res.data);
       setName(res.data.name);
+      setLoc(res.data.location);
       setDob(res.data.dob || "");
     } catch (err) {
       console.log(err);
-      showToast("Could not load profile", "error");
+      toast.error("Could not load profile", "error");
     }
   }
 
@@ -70,6 +62,7 @@ function Profile() {
         {
           name,
           dob,
+          loc
         },
         {
           headers: {
@@ -80,10 +73,10 @@ function Profile() {
 
       setProfile(res.data.user);
       setEditMode(false);
-      showToast(res.data.message, "success");
+      toast.success(res.data.message, "success");
     } catch (err) {
       console.log(err);
-      showToast(
+      toast.error(
         err.response?.data?.message || "Could not update profile",
         "error"
       );
@@ -108,12 +101,6 @@ function Profile() {
 
   return (
     <section className="profile-page">
-      {message && (
-        <div className={`profile-toast ${messageType}`}>
-          {message}
-        </div>
-      )}
-
       <div className="profile-shell">
         <div className="profile-header">
           <div className="profile-avatar">
@@ -150,8 +137,16 @@ function Profile() {
                     <span>Date of Birth</span>
                     <p>{profile.dob}</p>
                   </div>
+                  <div className="profile-info-box">
+                  <span>Phone No</span>
+                  <p>{`${profile.phone.slice(0,2)}*****${profile.phone.slice(7,10)}`}</p>
                 </div>
-
+                <div className="profile-info-box">
+                  <span>Location</span>
+                  <p>{profile.location}</p>
+                </div>
+                </div>
+                
                 <button
                   className="profile-primary-btn"
                   onClick={() => setEditMode(true)}
@@ -178,7 +173,10 @@ function Profile() {
                     onChange={(e) => setDob(e.target.value)}
                   />
                 </div>
-
+              <div className="profile-field">
+                <label>Location</label>
+                <input type="text" value={loc} onChange={(e)=>setLoc(e.target.value)}/>
+              </div>
                 <div className="profile-actions">
                   <button className="profile-primary-btn" type="submit">
                     Save Changes

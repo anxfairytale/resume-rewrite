@@ -16,6 +16,14 @@ module.exports=(Sequelize,sequelize)=>{
         dob:{
             type:Sequelize.DATEONLY,
             allowNull:false
+        },
+        location:{
+            type:Sequelize.STRING,
+            allowNull:false
+        },
+        phone:{
+            type:Sequelize.STRING,
+            allowNull:false
         }
     });
     return User;

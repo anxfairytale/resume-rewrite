@@ -4,7 +4,8 @@ import "../styles/Home.css";
 
 function Navbar() {
   const navigate = useNavigate();
-
+  const storedUser=localStorage.getItem("user");
+  const user=storedUser?JSON.parse(storedUser):null;
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -20,8 +21,8 @@ function Navbar() {
           <p>Rewrite your resume for every job</p>
         </div>
       </div>
-
       <nav className="right-side">
+         <p className="user-greet">{`Hello ${user.name}`}</p>
         <button className="nav-btn" onClick={() => navigate("/home")}>
           Home
         </button>

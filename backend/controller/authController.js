@@ -1,10 +1,70 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer")
 const db = require('../model/index')
 const router = express.Router();
 const authenticateToken = require("../middleware/authMiddleware");
 const User = db.User;
+const otpStore = {}
+const transporter = nodemailer.createTransport({
+    host:"smtp.office365.com",
+    port: 587,
+    secure: false,
+    pool: true,
+    maxConnections:2,
+    maxMessages:100,
+    auth:{
+      user:process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    tls:{
+      rejectUnauthorized:false
+    }
+});
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+    otpStore[email] = otp;
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify your account',
+      text: `Your OTP is ${otp}`
+    });
+    res.json({
+      message: 'Otp sent'
+    })
+  } catch (err) {
+    console.log(err);
+    res.status(500).json(err);
+  }
+})
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({
+        message: "Email is missing"
+      })
+    }
+    if(otpStore[email]!==otp){
+      return res.status(404).json({message:'Incorrect otp'});
+    }
+    delete otpStore[email];
+    return res.json({
+      message:'Success'
+    })
+  }catch(err){
+    console.log(err);
+  }
+})
 function calculateAge(dob) {
   const birthDate = new Date(dob);
   const today = new Date();
@@ -18,7 +78,7 @@ function calculateAge(dob) {
 }
 router.get("/profile", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ where: { id:req.user.id } }, { attributes: ["id", "name", "email", "dob", "createdAt"] })
+    const user = await User.findOne({ where: { id: req.user.id } }, { attributes: ["id", "name", "email", "dob", "createdAt"] })
     if (!user) {
       return res.status(404).json({
         message: "User not found",
@@ -34,31 +94,33 @@ router.get("/profile", authenticateToken, async (req, res) => {
     });
   }
 })
-router.put("/profile",authenticateToken,async(req,res)=>{
-  try{
-    const {name,dob}=req.body;
-    if(!name ||!dob){
+router.put("/profile", authenticateToken, async (req, res) => {
+  try {
+    const { name, dob, loc } = req.body;
+    if (!name || !dob || !loc) {
       return res.status(400).json({
-        message:"Name and date of birth are required",
+        message: "Name, location and date of birth are required",
       })
     }
-    const user=await User.findOne({where:{id:req.user.id}});
-    if(!user){
+    const user = await User.findOne({ where: { id: req.user.id } });
+    if (!user) {
       return res.status(404).json({
-        message:"User not found",
+        message: "User not found",
       })
     }
     await user.update({
       name: name,
       dob: dob,
-  })
-     res.json({
+      location: loc
+    })
+    res.json({
       message: "Profile updated successfully",
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         dob: user.dob,
+        location: user.location
       },
     });
   } catch (err) {
@@ -71,9 +133,9 @@ router.put("/profile",authenticateToken,async(req,res)=>{
 });
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, password, dob } = req.body;
+    const { name, email, number, password, dob, location } = req.body;
 
-    if (!name || !email || !password || !dob) {
+    if (!name || !email || !password || !dob || !number) {
       return res.status(400).json({
         message: "Name, email, dob and password are required",
       });
@@ -97,14 +159,18 @@ router.post("/signup", async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      dob
+      phone: number,
+      dob,
+      location
     })
     res.status(201).json({
       message: "Signup successful",
       user: {
         name,
         email,
-        dob
+        dob,
+        phone: number,
+        location
       },
     });
   } catch (err) {

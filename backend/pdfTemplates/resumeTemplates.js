@@ -1,16 +1,11 @@
-// backend/pdfTemplates/resumeTemplates.js
-
 function checkPage(doc, neededSpace = 80) {
   if (doc.y + neededSpace > doc.page.height - 50) {
     doc.addPage();
   }
 }
-
 function sectionTitle(doc, title, color = "#d47706") {
   checkPage(doc, 45);
-
   doc.moveDown(0.7);
-
   doc
     .fontSize(12)
     .fillColor(color)
@@ -20,8 +15,8 @@ function sectionTitle(doc, title, color = "#d47706") {
     });
 
   doc
-    .moveTo(doc.x, doc.y + 4)
-    .lineTo(545, doc.y + 4)
+    .moveTo(doc.page.margins.left, doc.y + 4)
+    .lineTo(doc.page.width - doc.page.margins.right, doc.y + 4)
     .strokeColor("#e2e8f0")
     .lineWidth(1)
     .stroke();
@@ -31,10 +26,8 @@ function sectionTitle(doc, title, color = "#d47706") {
 
 function bullet(doc, text, options = {}) {
   checkPage(doc, 45);
-
   const startX = options.x || doc.x;
   const width = options.width || 480;
-
   doc
     .fontSize(options.fontSize || 10)
     .fillColor(options.color || "#334155")
@@ -126,7 +119,6 @@ function drawExecutiveTemplate(doc, data) {
 
     safeArray(data.experience).forEach((exp) => {
       checkPage(doc, 90);
-
       doc
         .font("Helvetica-Bold")
         .fontSize(11)

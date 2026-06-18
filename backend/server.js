@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
-const routes=require('./router');
+const routes=require('./routes/router');
 const db=require('./model/index')
 const app = express();
 app.use(cors());
@@ -16,7 +16,7 @@ if (!fs.existsSync("uploads")) {
 if (!fs.existsSync("generated")) {
   fs.mkdirSync("generated");
 }
-db.sequelize.sync()
+db.sequelize.sync({})
 .then(()=>{
   console.log('Database Connection Successful');
   app.listen(5000, () => {

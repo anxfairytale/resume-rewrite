@@ -2,23 +2,60 @@ import React, { useState } from "react";
 import axios from "axios";
 import "../styles/Login.css";
 import { useEffect } from "react";
-
+import { toast } from "react-toastify"
 function Login() {
   const [isSignup, setIsSignup] = useState(false);
-
+  const [number, setNumber] = useState("");
+  const [location, setLocation] = useState("")
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [dob,setDob]=useState(null)
+  const [dob, setDob] = useState("")
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  useEffect(()=>{
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otp, setOtp] = useState("");
+  async function sendOtp() {
+    try {
+      if (!email) {
+        toast.error("Please enter your email first");
+        return;
+      }
+
+      await axios.post("http://localhost:5000/auth/send-otp", { email });
+
+      toast.success("OTP sent");
+      setOtpSent(true);
+    } catch (err) {
+      toast.error("Failed to send OTP");
+      console.log(err);
+    }
+  }
+  async function verifyOtp() {
+    try {
+      if (!otp) {
+        toast.error("Please enter OTP");
+        return;
+      }
+      await axios.post("http://localhost:5000/auth/verify-otp", { email, otp });
+      toast.success("OTP verified");
+      setOtpVerified(true);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "OTP entered is wrong");
+      console.log(err);
+    }
+  }
+  useEffect(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-  },[])
+  }, [])
   async function handleAuth(e) {
     e.preventDefault();
-
+    if (isSignup && !otpVerified) {
+      toast.error("Please verify your OTP before signing up");
+      return;
+    }
     try {
       setLoading(true);
       setMessage("");
@@ -28,7 +65,7 @@ function Login() {
         : "http://localhost:5000/auth/login";
 
       const payload = isSignup
-        ? { name, email, password, dob }
+        ? { name, email, number, password, dob, location }
         : { email, password };
 
       const res = await axios.post(url, payload);
@@ -42,6 +79,9 @@ function Login() {
       } else {
         setIsSignup(false);
         setPassword("");
+        setOtp("");
+        setOtpSent(false);
+        setOtpVerified(false);
       }
     } catch (err) {
       console.log(err);
@@ -87,27 +127,75 @@ function Login() {
               />
             </div>
           )}
-
           <div className="auth-field">
             <label>Email</label>
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          {isSignup && (
-            <div className="auth-field">
-              <label>Date of Birth</label>
+
+            <div className="input-btn-row">
               <input
-                type="date"
-                value={dob}
-                onChange={(e) => setDob(e.target.value)}
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
+
+              {isSignup && (
+                <button
+                  type="button"
+                  className="small-auth-btn"
+                  onClick={sendOtp}
+                  disabled={otpSent}
+                >
+                  {otpSent ? "Sent" : "Send OTP"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {isSignup && otpSent && (
+            <div className="auth-field">
+              <label>OTP</label>
+
+              <div className="input-btn-row">
+                <input
+                  type="text"
+                  placeholder="Enter OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="small-auth-btn"
+                  onClick={verifyOtp}
+                  disabled={otpVerified}
+                >
+                  {otpVerified ? "Verified" : "Verify"}
+                </button>
+              </div>
+              <p>Didn't receive OTP? <span onClick={sendOtp} style={{color:"red"}}>Click here to resend</span></p>
             </div>
           )}
-          <div className="auth-field">
+
+          {isSignup && otpVerified && (
+            <>
+              <div className="auth-field">
+                <label>Phone No</label>
+                <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} />
+              </div>
+              <div className="auth-field">
+                <label>Date of Birth</label>
+                <input
+                  type="date"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                />
+              </div>
+              <div className="auth-field">
+                <label>Location</label>
+                <input type="text" value={location} placeholder="Enter your city" onChange={(e) => setLocation(e.target.value)} />
+              </div>
+            </>
+          )}
+          {((isSignup && otpVerified )||(!isSignup))&&(<div className="auth-field">
             <label>Password</label>
             <input
               type="password"
@@ -116,7 +204,7 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-
+          )}
           {message && <p className="auth-message">{message}</p>}
 
           <button className="auth-btn" disabled={loading}>
