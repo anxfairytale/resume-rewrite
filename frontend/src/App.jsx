@@ -8,8 +8,8 @@ import Users from "./components/AdminView/Users";
 import MainLayout from "./components/MainLayout";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import AdminSettings from "./components/AdminView/AdminSettings";
 function App() {
-
   return (
     <>
      <ToastContainer position="top-right" autoClose={2000} />
@@ -22,6 +22,9 @@ function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/profile" element={<Profile/>}/>
         <Route path="/users" element={<Users/>}/>
+        <Route path="/settings" element={<AdminSettings/>}/>
+        <Route path="/free-users" element={<Users view="free"/>}/>
+        <Route path="/paid-users" element={<Users view="pro"/>}/>
         </Route>
       </Routes>
     </BrowserRouter>

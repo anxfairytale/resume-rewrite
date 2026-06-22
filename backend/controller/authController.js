@@ -4,47 +4,62 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer")
 const db = require('../model/index')
 const router = express.Router();
-const authorizeAdmin=require("../middleware/adminMiddleware")
+const authorizeAdmin = require("../middleware/adminMiddleware")
 const authenticateToken = require("../middleware/authMiddleware");
 const User = db.User;
-const Resume=db.Resume;
+const Resume = db.Resume;
+const Setting = db.Setting;
 const otpStore = {}
-const verifiedEmails={}
-const verifiedPhones={}
+const verifiedEmails = {}
+const verifiedPhones = {}
+const {Op}=require("sequelize");
 const transporter = nodemailer.createTransport({
-    host:"smtp.office365.com",
-    port: 587,
-    secure: false,
-    pool: true,
-    maxConnections:2,
-    maxMessages:100,
-    auth:{
-      user:process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    },
-    tls:{
-      rejectUnauthorized:false
-    }
+  host: "smtp.office365.com",
+  port: 587,
+  secure: false,
+  pool: true,
+  maxConnections: 2,
+  maxMessages: 100,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
-router.get('/users',authenticateToken,authorizeAdmin,async(req,res)=>{
-  try{
-    const users=await User.findAll({
-        include:[{
-          model:Resume,
-        }],
-        order:[["createdAt","DESC"]]
+router.get('/users', authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const {plan,search}=req.query;
+    const where={};
+    if(plan){
+      where.plan=plan;
+    }
+    if(search){
+      where[Op.or]=[
+        {name:{[Op.like]:`%${search}%`}},
+        {email:{[Op.like]:`%${search}%`}},
+        {phone:{[Op.like]:`%${search}%`}}
+      ];
+    }
+    const users = await User.findAll({
+      where,
+      include: [{
+        model: Resume,
+      }],
+      order: [["createdAt", "DESC"]]
     });
-    const formattedUsers=users.map((user)=>{
-      const plainUser=user.toJSON();
-      const resumes=plainUser.Resumes || plainUser.resumes||[];
-      return{
-        id:plainUser.id,
-        name:plainUser.name,
-        email:plainUser.email,
-        phone:plainUser.phone||"Not provided",
-        emailStatus:plainUser.isEmailVerified?"Verified":"Not Verified",
-        phoneStatus:plainUser.isPhoneVerified?"Verified":"Not Verified",
-        plan:plainUser.plan,
+    const formattedUsers = users.map((user) => {
+      const plainUser = user.toJSON();
+      const resumes = plainUser.Resumes || plainUser.resumes || [];
+      return {
+        id: plainUser.id,
+        name: plainUser.name,
+        email: plainUser.email,
+        phone: plainUser.phone || "Not provided",
+        emailStatus: plainUser.isEmailVerified ? "Verified" : "Not Verified",
+        phoneStatus: plainUser.isPhoneVerified ? "Verified" : "Not Verified",
+        plan: plainUser.plan,
         isBlocked: plainUser.isBlocked,
 
         freeUsesLeft: plainUser.freeUsesLeft,
@@ -61,7 +76,7 @@ router.get('/users',authenticateToken,authorizeAdmin,async(req,res)=>{
       }
     });
     res.json(formattedUsers);
-  }catch(err){
+  } catch (err) {
     console.log(err);
     res.json(err);
   }
@@ -98,28 +113,28 @@ router.post('/verify-otp', async (req, res) => {
         message: "Email is missing"
       })
     }
-    if(otpStore[email]!==otp){
-      return res.status(404).json({message:'Incorrect otp'});
+    if (otpStore[email] !== otp) {
+      return res.status(404).json({ message: 'Incorrect otp' });
     }
     delete otpStore[email];
-    verifiedEmails[email]=true;
+    verifiedEmails[email] = true;
     return res.json({
-      message:'Success'
+      message: 'Success'
     })
-  }catch(err){
+  } catch (err) {
     console.log(err);
   }
 })
-router.patch("/users/:id/block",async(req,res)=>{
-  try{
-    const{id}=req.params;
-    const user=await User.findByPk(id);
-    if(!user){
+router.patch("/users/:id/block", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByPk(id);
+    if (!user) {
       return res.status(404).json({
-        message:"User not found"
+        message: "User not found"
       });
     }
-    user.isBlocked=!user.isBlocked;
+    user.isBlocked = !user.isBlocked;
     await user.save();
     res.json({
       message: user.isBlocked
@@ -127,11 +142,24 @@ router.patch("/users/:id/block",async(req,res)=>{
         : "User unblocked successfully",
       user,
     });
-  }catch (err) {
+  } catch (err) {
     console.log(err);
     res.status(500).json({
       message: err.message,
     });
+  }
+})
+router.get("/user/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: "The user does not exist" })
+    }
+    res.json(user);
+  } catch (err) {
+    console.log(err);
+    res.status(400).json("Could not fetch user")
   }
 })
 function calculateAge(dob) {
@@ -202,11 +230,16 @@ router.put("/profile", authenticateToken, async (req, res) => {
 });
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, number, password, dob, location } = req.body;
+    const { name, email, number, password, dob, country, state, city } = req.body;
 
     if (!name || !email || !password || !dob || !number) {
       return res.status(400).json({
         message: "Name, email, dob and password are required",
+      });
+    }
+    if (!country || !state || !city) {
+      return res.status(400).json({
+        message: "Country, state, and city are required",
       });
     }
     const age = calculateAge(dob);
@@ -222,16 +255,27 @@ router.post("/signup", async (req, res) => {
         message: "User already exists",
       });
     }
-
+    const location = `${city},${state},${country}`;
     const hashedPassword = await bcrypt.hash(password, 10);
-    await User.create({
+    let settings = await Setting.findOne();
+    if (!settings) {
+      settings = await Setting.create({
+        freeTrialUses: 5,
+        paidAmount: 99
+      });
+    }
+    const user = await User.create({
       name,
       email,
       password: hashedPassword,
       phone: number,
       dob,
+      isEmailVerified: verifiedEmails[email],
+      country,
+      state,
+      city,
       location,
-      isEmailVerified: verifiedEmails[email]
+      freeUsesLeft:settings.freeTrialUses
     })
     res.status(201).json({
       message: "Signup successful",
@@ -272,9 +316,9 @@ router.post("/login", async (req, res) => {
         message: "Invalid email or password",
       });
     }
-    if(user.isBlocked){
+    if (user.isBlocked) {
       return res.status(403).json({
-        message:"Your account has been blocked.Please contact admin.",
+        message: "Your account has been blocked.Please contact admin.",
       })
     }
     const passwordMatch = await bcrypt.compare(password, user.password);
@@ -284,13 +328,13 @@ router.post("/login", async (req, res) => {
         message: "Invalid email or password",
       });
     }
-    
+
     const token = jwt.sign(
       {
         id: user.id,
         name: user.name,
         email: user.email,
-        role:user.role
+        role: user.role
       },
       process.env.JWT_SECRET,
       {
@@ -304,7 +348,7 @@ router.post("/login", async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role:user.role
+        role: user.role
       },
     });
   } catch (err) {

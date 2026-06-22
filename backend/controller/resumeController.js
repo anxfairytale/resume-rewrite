@@ -454,4 +454,22 @@ router.get("/my-resumes", authenticateToken, async (req, res) => {
   }
 }
 );
+router.delete("/my-resumes/:id",authenticateToken,async (req,res)=>{
+  try{
+    const id=req.params.id;
+    const resume=await Resume.findOne({where:{id:id,
+      userId:req.user.id
+    }});
+    if (!resume) {
+        return res.status(404).json({
+          message: "Resume not found or you are not allowed to delete it",
+        });
+      }
+    resume.destroy();
+    res.status(200).json({message:"Successfully deleted the resume"});
+  }catch(err){
+    console.log(err);
+    res.status(400).json(err);
+  }
+})
 module.exports = router;

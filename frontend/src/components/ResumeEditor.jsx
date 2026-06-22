@@ -1,6 +1,6 @@
 import React from "react";
 import { useState } from "react";
-import axios from "axios";
+import authApi , {BASE_URL} from "../services/api";
 import { toast } from "react-toastify";
 function ResumeEditor({ resumeData, setResumeData }) {
   const [improvingField, setImprovingField] = useState(null);
@@ -16,18 +16,13 @@ function ResumeEditor({ resumeData, setResumeData }) {
 
       const token = localStorage.getItem("token");
 
-      const res = await axios.post(
-        "http://localhost:5000/resume/improve-field",
+      const res = await authApi.post(
+        "/resume/improve-field",
         {
           fieldName,
           text: currentText,
           instruction: "Make this resume field more professional and ATS-friendly",
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
       );
 
       setSuggestions({
@@ -50,17 +45,12 @@ function ResumeEditor({ resumeData, setResumeData }) {
       const fieldKey = `${section}-${index}`;
       setImprovingField(fieldKey);
       const token = localStorage.getItem("token");
-      const res = await axios.post("http://localhost:5000/resume/improve-field",
+      const res = await authApi.post("/resume/improve-field",
         {
           fieldName: section,
           text: currentText,
           instruction: "Rewrite this resume bullet to sound stronger, clearer, and ATS-friendly",
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          }
-        }
       );
       setSuggestions({
         ...suggestions,
@@ -82,19 +72,14 @@ function ResumeEditor({ resumeData, setResumeData }) {
       const fieldKey = `${section}-${itemIndex}-bullet-${bulletIndex}`;
       setImprovingField(fieldKey);
       const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "http://localhost:5000/resume/improve-field",
+      const res = await authApi.post(
+        "/resume/improve-field",
         {
           fieldName: `${section} bullet`,
           text: currentText,
           instruction:
             "Rewrite this resume bullet with a stronger action verb, clearer impact, and ATS-friendly wording. Do not invent numbers or fake achievements.",
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
       );
       setSuggestions({
         ...suggestions,
@@ -119,21 +104,15 @@ function ResumeEditor({ resumeData, setResumeData }) {
 
       const token = localStorage.getItem("token");
 
-      const res = await axios.post(
-        "http://localhost:5000/resume/improve-field",
+      const res = await authApi.post(
+        "/resume/improve-field",
         {
           fieldName: `${section} ${key}`,
           text: currentText,
           instruction:
             "Improve this resume field so it is clear, professional, concise, and ATS-friendly. Do not invent fake details.",
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
       );
-
       setSuggestions({
         ...suggestions,
         [fieldKey]: res.data.improvedText,

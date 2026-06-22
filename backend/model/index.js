@@ -5,6 +5,7 @@ db.sequelize=sequelize;
 db.Sequelize=Sequelize;
 db.User=require('./User')(Sequelize,sequelize);
 db.Resume=require("./Resume")(Sequelize,sequelize);
+db.Setting=require("./Setting")(sequelize,Sequelize);
 db.User.hasMany(db.Resume,{
     foreignKey:"userId",
 });

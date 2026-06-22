@@ -198,6 +198,32 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+.auth-field select {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #ffd9af;
+  border-radius: 14px;
+  background: #fffaf3;
+  color: #4f252e;
+  font-size: 15px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.auth-field select:focus {
+  border-color: #d47706;
+  box-shadow: 0 0 0 4px rgba(212, 119, 6, 0.12);
+  background: #ffffff;
+}
+
+.auth-field select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-field select option {
+  color: #4f252e;
+}
 @media (max-width: 600px) {
   .input-btn-row {
     flex-direction: column;

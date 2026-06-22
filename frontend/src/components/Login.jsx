@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { BASE_URL } from "../services/api";
 import axios from "axios";
 import "../styles/Login.css";
 import { useEffect } from "react";
 import { toast } from "react-toastify"
+import { Country, State, City } from "country-state-city";
 function Login() {
   const [isSignup, setIsSignup] = useState(false);
   const [number, setNumber] = useState("");
@@ -16,6 +18,11 @@ function Login() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otp, setOtp] = useState("");
+  const [country, setCountry] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [stateCode, setStateCode] = useState("");
   async function sendOtp() {
     try {
       if (!email) {
@@ -23,7 +30,7 @@ function Login() {
         return;
       }
 
-      await axios.post("http://localhost:5000/auth/send-otp", { email });
+      await axios.post(`${BASE_URL}/auth/send-otp`, { email });
 
       toast.success("OTP sent");
       setOtpSent(true);
@@ -38,7 +45,7 @@ function Login() {
         toast.error("Please enter OTP");
         return;
       }
-      await axios.post("http://localhost:5000/auth/verify-otp", { email, otp });
+      await axios.post(`${BASE_URL}/auth/verify-otp`, { email, otp });
       toast.success("OTP verified");
       setOtpVerified(true);
     } catch (err) {
@@ -56,16 +63,20 @@ function Login() {
       toast.error("Please verify your OTP before signing up");
       return;
     }
+    if(isSignup && (!country || !state|| !city)){
+      alert("Please select your country, state and city");
+      return;
+    }
     try {
       setLoading(true);
       setMessage("");
 
       const url = isSignup
-        ? "http://localhost:5000/auth/signup"
-        : "http://localhost:5000/auth/login";
+        ? `${BASE_URL}/auth/signup`
+        : `${BASE_URL}/auth/login`;
 
       const payload = isSignup
-        ? { name, email, number, password, dob, location }
+        ? { name, email, number, password, dob, country, state, city }
         : { email, password };
 
       const res = await axios.post(url, payload);
@@ -75,12 +86,12 @@ function Login() {
       if (!isSignup) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-        if(res.data.user.role==='admin'){
+        if (res.data.user.role === 'admin') {
           window.location.href = "/users";
         }
-        else{
+        else {
           window.location.href = "/home";
-         }
+        }
       } else {
         setIsSignup(false);
         setPassword("");
@@ -176,7 +187,7 @@ function Login() {
                   {otpVerified ? "Verified" : "Verify"}
                 </button>
               </div>
-              <p>Didn't receive OTP? <span onClick={sendOtp} style={{color:"red"}}>Click here to resend</span></p>
+              <p>Didn't receive OTP? <span onClick={sendOtp} style={{ color: "red" }}>Click here to resend</span></p>
             </div>
           )}
 
@@ -195,12 +206,55 @@ function Login() {
                 />
               </div>
               <div className="auth-field">
-                <label>Location</label>
-                <input type="text" value={location} placeholder="Enter your city" onChange={(e) => setLocation(e.target.value)} />
+                <label>Country</label>
+                <select value={countryCode} onChange={(e) => {
+                  const selectedCountry = Country.getCountryByCode(e.target.value);
+                  setCountryCode(e.target.value);
+                  setCountry(selectedCountry?.name || "");
+                  setStateCode("");
+                  setState("");
+                  setCity("");
+                }}>
+                  <option value="">Select country</option>
+                  {Country.getAllCountries().map((c) => (
+                    <option key={c.isoCode} value={c.isoCode}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="auth-field">
+                <label>State</label>
+                <select value={stateCode} disabled={!countryCode} onChange={(e) => {
+                  const selectedState = State.getStateByCodeAndCountry(e.target.value, countryCode);
+                  setStateCode(e.target.value);
+                  setState(selectedState?.name || "");
+                  setCity("");
+                }}>
+                  <option value="">Select state</option>
+                  {State.getStatesOfCountry(countryCode).map((s) => (
+                    <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="auth-field">
+                <label>City</label>
+                <select
+                  value={city}
+                  disabled={!stateCode}
+                  onChange={(e) => setCity(e.target.value)}
+                >
+                  <option value="">Select city</option>
+                  {City.getCitiesOfState(countryCode, stateCode).map((ct) => (
+                    <option key={`${ct.name}-${ct.latitude}-${ct.longitude}`} value={ct.name}>
+                      {ct.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </>
           )}
-          {((isSignup && otpVerified )||(!isSignup))&&(<div className="auth-field">
+          {((isSignup && otpVerified) || (!isSignup)) && (<div className="auth-field">
             <label>Password</label>
             <input
               type="password"

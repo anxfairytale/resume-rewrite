@@ -1,20 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import axios from "axios";
+import authApi from "../../services/api";
 import "../../styles/Users.css";
 
-function Users() {
+function Users({ view = "all" }) {
     const [users, setUsers] = useState([]);
-
+    const [search, setSearch] = useState("");
     async function getUsers() {
         try {
+            let url = "/auth/users";
+            const params = new URLSearchParams();
+            if (view === "free") {
+                params.append("plan", "free");
+            }
+            if (view === "pro") {
+                params.append("plan", "pro");
+            }
+            if (search.trim()) {
+                params.append("search", search.trim());
+            }
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
             const token = localStorage.getItem("token");
 
-            const res = await axios.get("http://localhost:5000/auth/users", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+            const res = await authApi.get(url);
 
             console.log("USERS API RESPONSE:", res.data);
 
@@ -35,14 +45,17 @@ function Users() {
     }
 
     useEffect(() => {
-        getUsers();
-    }, []);
+        const delay=setTimeout(()=>{
+            getUsers();
+        },400);
+        return ()=>clearTimeout(delay);
+    }, [view,search]);
 
     const freeUsers = users.filter((user) => user.plan === "free");
     const paidUsers = users.filter((user) => user.plan === "pro");
     async function toggleBlock(id) {
         try {
-            const response=await axios.patch(`http://localhost:5000/auth/users/${id}/block`);
+            const response = await authApi.patch(`/auth/users/${id}/block`);
             toast.success(response.data.message);
             getUsers();
         } catch (err) {
@@ -58,41 +71,71 @@ function Users() {
             timeStyle: "short",
         });
     }
+    function getPageTitle() {
+        if (view === "free") return "Free Users";
+        if (view === "pro") return "Paid Users";
+        return "Users";
+    }
+    function exportToCSV(exportUsers, filename) {
+        const headings = [
+            "Id",
+            "Name",
+            "Email",
+            "Phone",
+            "Email Status",
+            "Plan",
+            "Free Uses Left",
+            "Pro Uses Left",
+            "Total Uses",
+            "Registered At",
+            "Last Used At",
+            "Status",
+        ];
 
-    return (
-        <section className="user-section">
-            <div className="user-header">
-                <div>
-                    <h1>Admin Users</h1>
-                    <p>Manage free users, paid users, usage, and blocked accounts.</p>
+        const rows = exportUsers.map((user) => [
+            user.id,
+            user.name,
+            user.email,
+            user.phone || "Not provided",
+            user.emailStatus || "Not verified",
+            user.plan,
+            user.freeUsesLeft ?? 0,
+            user.proUsesLeft ?? 0,
+            user.totalUses ?? 0,
+            formatDate(user.registeredAt),
+            formatDate(user.lastUsedAt),
+            user.isBlocked ? "Blocked" : "Active",
+        ]);
+
+        const csvContent = [
+            headings.join(","),
+            ...rows.map((row) =>
+                row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
+            ),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.click();
+
+        URL.revokeObjectURL(url);
+    }
+    function renderFreeUsersTable() {
+        return (
+            <>
+                <div className="table-title-row">
+                    <h2>Free Users</h2>
+                    <button className="export-btn" onClick={() => exportToCSV(freeUsers, "free-users.csv")}>
+                        Export Free Users
+                    </button>
                 </div>
-            </div>
-
-            <div className="user-stats">
-                <div className="stat-card">
-                    <h3>Total Users</h3>
-                    <p>{users.length}</p>
-                </div>
-
-                <div className="stat-card">
-                    <h3>Free Users</h3>
-                    <p>{freeUsers.length}</p>
-                </div>
-
-                <div className="stat-card">
-                    <h3>Paid Users</h3>
-                    <p>{paidUsers.length}</p>
-                </div>
-
-                <div className="stat-card">
-                    <h3>Blocked Users</h3>
-                    <p>{users.filter((user) => user.isBlocked).length}</p>
-                </div>
-            </div>
-
-            <div className="user-body">
-                <h2>Free Users</h2>
-
                 <div className="table-wrapper">
                     <table>
                         <thead>
@@ -109,7 +152,6 @@ function Users() {
                                 <th>Status</th>
                             </tr>
                         </thead>
-
                         <tbody>
                             {freeUsers.length === 0 ? (
                                 <tr>
@@ -129,9 +171,19 @@ function Users() {
                                         <td>{user.totalUses ?? 0}</td>
                                         <td>{formatDate(user.registeredAt)}</td>
                                         <td>{formatDate(user.lastUsedAt)}</td>
-                                        <td>
-                                            <span style={{ cursor: "pointer" }} className={user.isBlocked ? "badge blocked" : "badge active"} onClick={() => toggleBlock(user.id)}>
+                                        <td className="status-cell">
+                                            <span
+                                                style={{ cursor: "pointer" }}
+                                                className={user.isBlocked ? "badge blocked" : "badge active"}
+                                                onClick={() => toggleBlock(user.id)}
+                                            >
                                                 {user.isBlocked ? "Blocked" : "Active"}
+                                            </span>
+
+                                            <span className="status-tooltip">
+                                                {user.isBlocked
+                                                    ? "Click to unblock this user"
+                                                    : "Click to block this user"}
                                             </span>
                                         </td>
                                     </tr>
@@ -140,8 +192,23 @@ function Users() {
                         </tbody>
                     </table>
                 </div>
+            </>
+        )
+    }
 
-                <h2>Paid Users</h2>
+    function renderPaidUsersTable() {
+        return (
+            <>
+                <div className="table-title-row">
+                    <h2>Paid Users</h2>
+
+                    <button
+                        className="export-btn"
+                        onClick={() => exportToCSV(paidUsers, "paid-users.csv")}
+                    >
+                        Export Paid Users
+                    </button>
+                </div>
 
                 <div className="table-wrapper">
                     <table>
@@ -181,9 +248,19 @@ function Users() {
                                         <td>{user.totalUses ?? 0}</td>
                                         <td>{formatDate(user.registeredAt)}</td>
                                         <td>{formatDate(user.lastUsedAt)}</td>
-                                        <td>
-                                            <span className={user.isBlocked ? "badge blocked" : "badge active"}>
+                                        <td className="status-cell">
+                                            <span
+                                                style={{ cursor: "pointer" }}
+                                                className={user.isBlocked ? "badge blocked" : "badge active"}
+                                                onClick={() => toggleBlock(user.id)}
+                                            >
                                                 {user.isBlocked ? "Blocked" : "Active"}
+                                            </span>
+
+                                            <span className="status-tooltip">
+                                                {user.isBlocked
+                                                    ? "Click to unblock this user"
+                                                    : "Click to block this user"}
                                             </span>
                                         </td>
                                     </tr>
@@ -192,9 +269,72 @@ function Users() {
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </section>
-    );
-}
+            </>
+        );
+    }
+    return (
+    <section className="user-section">
+      <div className="user-header">
+        <div>
+          <h1>{getPageTitle()}</h1>
+        </div>
+      </div>
 
+      <div className="user-search-box">
+        <input
+          type="text"
+          placeholder="Search by name, email, or phone"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <button
+          type="button"
+          onClick={() => {
+            setSearch("");
+          }}
+        >
+          Clear
+        </button>
+      </div>
+
+      {view === "all" && (
+        <div className="user-stats">
+          <div className="stat-card">
+            <h3>Total Users</h3>
+            <p>{users.length - 1}</p>
+          </div>
+
+          <div className="stat-card">
+            <h3>Free Users</h3>
+            <p>{freeUsers.length}</p>
+          </div>
+
+          <div className="stat-card">
+            <h3>Paid Users</h3>
+            <p>{paidUsers.length}</p>
+          </div>
+
+          <div className="stat-card">
+            <h3>Blocked Users</h3>
+            <p>{users.filter((user) => user.isBlocked).length}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="user-body">
+        {view === "all" && (
+          <>
+            {renderFreeUsersTable()}
+            {renderPaidUsersTable()}
+          </>
+        )}
+
+        {view === "free" && renderFreeUsersTable()}
+
+        {view === "pro" && renderPaidUsersTable()}
+      </div>
+    </section>
+  );
+}
 export default Users;

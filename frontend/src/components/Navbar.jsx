@@ -4,9 +4,9 @@ import "../styles/Home.css";
 
 function Navbar() {
   const navigate = useNavigate();
-  const storedUser=localStorage.getItem("user");
-  const user=storedUser?JSON.parse(storedUser):null;
-  const role=user.role
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const role = user.role
   console.log(role);
   function handleLogout() {
     localStorage.removeItem("token");
@@ -25,17 +25,34 @@ function Navbar() {
       </div>
       <nav className="right-side">
         <p className="user-greet">{`Hello ${user.name}`}</p>
-        {role==="user" &&(<button className="nav-btn" onClick={() => navigate("/home")}>
+        {role === "user" && (
+          <>
+          <button className="nav-btn" onClick={() => navigate("/home")}>
           Home
-        </button>)} 
-        {role=="admin" && (<button className="nav-btn" onClick={()=>navigate("/users")}>
+        </button>
+       
+        </>
+      )}
+        {role == "admin" && (
+          <>
+        <button className="nav-btn" onClick={()=>navigate("/users")}>
           Users
-        </button>)}
+        </button>
+        <button className="nav-btn" onClick={()=>navigate("/free-users")}>
+          Free Users
+        </button>
+        <button className="nav-btn" onClick={()=>navigate("/paid-users")}>
+          Paid Users
+        </button>
+        <button className="nav-btn" onClick={()=>navigate("/settings")}>
+          Settings
+        </button>
+        </>)}
+
         
-        <button className="nav-btn" onClick={() => navigate("/profile")}>
+           <button className="nav-btn" onClick={() => navigate("/profile")}>
           Profile
         </button>
-
         <button className="nav-btn logout-btn" onClick={handleLogout}>
           Logout
         </button>

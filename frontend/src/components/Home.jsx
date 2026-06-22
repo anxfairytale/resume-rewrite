@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../styles/Home.css";
 import FileUpload from "./FileUpload";
 import ResumeEditor from "./ResumeEditor";
-import axios from "axios";
+import authApi from "../services/api";
 import MatchAnalysisModal from "./MatchAnalysisModal";
 function Home() {
   const [jobDescription, setJobDescription] = useState("");
@@ -10,16 +10,33 @@ function Home() {
   const [skills, setSkills] = useState("");
   const [termCheck, setTermCheck] = useState(false);
   const [dial, setDial] = useState(false);
-  const [matchAnalysis,setMatchAnalysis]=useState(null);
-  const [showMatchModal,setShowMatchModal]=useState(false);
+  const [matchAnalysis, setMatchAnalysis] = useState(null);
+  const [showMatchModal, setShowMatchModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("executive");
-
+  const [paymentPopUp, setPaymentPopUp] = useState(false);
   const [resumeData, setResumeData] = useState(null);
   const [pdfUrl, setPdfUrl] = useState("");
+  const [user, setUser] = useState(null);
 
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
-
+  async function getUser() {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        console.log("No user found in localStorage");
+        return;
+      }
+      const u = JSON.parse(storedUser);
+      const res = await authApi.get(`/auth/user/${u.id}`);
+      setUser(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  }
+  useEffect(() => {
+    getUser();
+  }, [])
   const [resumeMeta, setResumeMeta] = useState({
     originalFileName: "",
     originalFilePath: "",
@@ -28,9 +45,8 @@ function Home() {
   });
 
   async function handleAnalyzeResume() {
-    
+    setPaymentPopUp(false);
     const token = localStorage.getItem("token");
-
     if (!token) {
       alert("Please login before generating a resume.");
       window.location.href = "/login";
@@ -60,15 +76,9 @@ function Home() {
       formData.append("jobDescription", jobDescription);
       formData.append("skills", skills);
       formData.append("resume", resumeFile);
-      const response = await axios.post(
-        "http://localhost:5000/resume/analyze",
+      const response = await authApi.post(
+        "/resume/analyze",
         formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
       );
 
       setResumeData(response.data.resumeData);
@@ -105,8 +115,8 @@ function Home() {
     try {
       setGeneratingPdf(true);
 
-      const response = await axios.post(
-        "http://localhost:5000/resume/generate-pdf",
+      const response = await authApi.post(
+        "/resume/generate-pdf",
         {
           resumeData,
           template: selectedTemplate,
@@ -115,11 +125,6 @@ function Home() {
           jobDescription: resumeMeta.jobDescription,
           skills: resumeMeta.skills,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
       );
 
       setPdfUrl(response.data.pdfUrl);
@@ -131,10 +136,122 @@ function Home() {
       setGeneratingPdf(false);
     }
   }
-
+  async function handlePayment() {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Please login before payment");
+        window.location.href = "/";
+        return;
+      }
+      const orderResponse = await authApi.post("/payment/create-order",{},);
+      const order = orderResponse.data;
+      const options = {
+        key: "rzp_test_T3OP1amnICZid0",
+        amount: order.amount,
+        currency: order.currency,
+        name: "2xResume",
+        description: "Upgrade to Pro Plan",
+        order_id: order.id,
+        handler: async function (response) {
+          try {
+            const verifyResponse = await authApi.post("/payment/verify-payment",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },);
+            alert(verifyResponse.data.message);
+            if (verifyResponse.data.user) {
+              localStorage.setItem("user", JSON.stringify(verifyResponse.data.user));
+              setUser(verifyResponse.data.user);
+            } else {
+              await getUser();
+            }
+            setPaymentPopUp(false);
+            getUser();
+          } catch (err) {
+            console.log(err);
+            alert(err.response?.data?.message || "Payment verification failed");
+          }
+        },
+        prefill: {
+          name: user?.name || "",
+          email: user?.email || "",
+        },
+        theme: {
+          color: "#d47706"
+        }
+      };
+      const razorpayPopup = new window.Razorpay(options);
+      razorpayPopup.open();
+    } catch (err) {
+      console.log(err);
+      alert(err.response?.data?.message || "Payment failed");
+    }
+  }
+  function handleRewriteClick(){
+    if(!user){
+      alert("Please wait, loading user details");
+      return;
+    }
+    if (user.plan === "pro" && (user.proUsesLeft ?? 0) > 0) {
+    handleAnalyzeResume();
+    return;
+  }
+  setPaymentPopUp(true);
+  }
   return (
     <div className="home-page">
       <main className="main-page">
+        {paymentPopUp && (
+          <div className="modal-backdrop">
+            <dialog open className="payment-dialog">
+              <button
+                className="payment-close"
+                onClick={() => setPaymentPopUp(false)}
+              >
+                ×
+              </button>
+              <div className="payment-badge">PRO</div>
+              <h1>Upgrade to Pro</h1>
+              <p className="payment-subtitle">
+                Generate more tailored resumes and continue after your free uses end.
+              </p>
+              <div className="uses-card">
+                <p>
+                  {user?.plan === "pro"
+                    ? `You have ${user?.proUsesLeft} pro uses left`
+                    : `You have ${user?.freeUsesLeft ?? 0} free uses left`}
+                </p>
+              </div>
+              <div className="price-box">
+                <span className="price">₹99</span>
+                <span className="price-note">Pro resume credits</span>
+              </div>
+
+              <div className="payment-actions">
+                <button className="pay-now-btn" onClick={handlePayment}>
+                  Pay Now
+                </button>
+
+                <button
+                  className="later-btn"
+                  disabled={(user?.freeUsesLeft ?? 0) === 0}
+                  onClick={handleAnalyzeResume}
+                >
+                  Later
+                </button>
+              </div>
+
+              {(user?.freeUsesLeft ?? 0) === 0 && user?.plan !== "pro" && (
+                <p className="payment-warning">
+                  You have no free uses left. Please upgrade to continue.
+                </p>
+              )}
+            </dialog>
+          </div>
+        )}
         {!resumeData ? (
           <section className="upload-layout">
             <section className="left-section">
@@ -281,10 +398,12 @@ function Home() {
                   </p>
                 )}
               </div>
-
+              <div className="form-card">
+                <p>{user?.plan === "pro" ? `You have ${user?.proUsesLeft} pro uses left` : `You have ${user?.freeUsesLeft} free uses left`}</p>
+              </div>
               <button
                 className="generate-btn"
-                onClick={handleAnalyzeResume}
+                onClick={handleRewriteClick}
                 disabled={!termCheck || analyzing}
               >
                 {analyzing ? "Creating Editable Sections..." : "Rewrite Resume"}
@@ -327,14 +446,14 @@ function Home() {
                   Back to Upload
                 </button>
                 {resumeData && (
-                <button
-                  className="action-btn action-btn-primary"
-                  onClick={handleGenerateFinalPdf}
-                  disabled={generatingPdf}
-                >
-                  {generatingPdf ? "Generating Final PDF..." : "Generate Final PDF"}
-                </button>
-              )}
+                  <button
+                    className="action-btn action-btn-primary"
+                    onClick={handleGenerateFinalPdf}
+                    disabled={generatingPdf}
+                  >
+                    {generatingPdf ? "Generating Final PDF..." : "Generate Final PDF"}
+                  </button>
+                )}
                 {pdfUrl ? (
                   <a
                     className="action-btn action-btn-download"
@@ -343,7 +462,7 @@ function Home() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Download 
+                    Download
                   </a>
                 ) : (
                   <button className="action-btn action-btn-disabled" disabled>
@@ -352,24 +471,24 @@ function Home() {
                 )}
               </div>
             </div>
-                {matchAnalysis && (
-    <button
-      type="button"
-      className="match-summary-card"
-      onClick={() => setShowMatchModal(true)}
-    >
-      <div className="match-percent">
-        {matchAnalysis.matchPercentage}%
-      </div>
+            {matchAnalysis && (
+              <button
+                type="button"
+                className="match-summary-card"
+                onClick={() => setShowMatchModal(true)}
+              >
+                <div className="match-percent">
+                  {matchAnalysis.matchPercentage}%
+                </div>
 
-      <div>
-        <h3>Resume Match Estimate</h3>
-        <p>{matchAnalysis.summary}</p>
-      </div>
+                <div>
+                  <h3>Resume Match Estimate</h3>
+                  <p>{matchAnalysis.summary}</p>
+                </div>
 
-      <span className="match-open-text">View details</span>
-    </button>
-  )}
+                <span className="match-open-text">View details</span>
+              </button>
+            )}
             <div className="editor-preview-layout">
               <section className="editor-panel">
                 <ResumeEditor
@@ -396,11 +515,11 @@ function Home() {
               </section>
             </div>
             {showMatchModal && matchAnalysis && (
-    <MatchAnalysisModal
-      matchAnalysis={matchAnalysis}
-      onClose={() => setShowMatchModal(false)}
-    />
-  )}
+              <MatchAnalysisModal
+                matchAnalysis={matchAnalysis}
+                onClose={() => setShowMatchModal(false)}
+              />
+            )}
           </section>
         )}
       </main>

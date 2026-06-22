@@ -236,7 +236,9 @@
   gap: 10px;
   flex-wrap: wrap;
 }
-
+.delete-btn{
+  font: red;
+}
 .resume-actions a {
   text-decoration: none;
   display: inline-flex;
@@ -402,6 +404,17 @@
   .profile-secondary-btn {
     width: 100%;
   }
+}
+.delete-resume-btn {
+  color: #dc2626;
+  border-color: #fecaca;
+  background-color: #fff;
+}
+
+.delete-resume-btn:hover {
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border-color: #fca5a5;
 }
 .user-greet{
   font-size: medium;

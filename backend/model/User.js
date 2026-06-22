@@ -19,7 +19,7 @@ module.exports = (Sequelize, sequelize) => {
         },
         location: {
             type: Sequelize.STRING,
-            allowNull: false
+            allowNull: true
         },
         phone: {
             type: Sequelize.STRING,
@@ -39,7 +39,7 @@ module.exports = (Sequelize, sequelize) => {
         },
         plan: {
             type: Sequelize.STRING,
-            defaultValue: false
+            defaultValue: "free"
         },
         isBlocked: {
             type: Sequelize.BOOLEAN,
@@ -56,6 +56,15 @@ module.exports = (Sequelize, sequelize) => {
         totalUses: {
             type: Sequelize.INTEGER,
             defaultValue: 0,
+        },
+        country:{
+            type:Sequelize.STRING,
+        },
+        state:{
+            type:Sequelize.STRING,
+        },
+        city:{
+            type:Sequelize.STRING,
         }
     });
     return User;

@@ -141,7 +141,352 @@ tr:hover {
   color: #9a3412;
   padding: 25px;
 }
+.status-cell {
+  position: relative;
+  overflow: visible;
+}
 
+.status-tooltip {
+  position: absolute;
+  bottom: 85%;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+
+  background: #4f252e;
+  color: #fffaf3;
+  padding: 8px 11px;
+  border-radius: 10px;
+
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transition: 0.2s ease;
+  z-index: 999;
+
+  box-shadow: 0 8px 20px rgba(79, 37, 46, 0.25);
+}
+
+.status-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+
+  border-width: 6px;
+  border-style: solid;
+  border-color: #4f252e transparent transparent transparent;
+}
+
+.status-cell:hover .status-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+.admin-settings-page,
+.users-page {
+  padding: 30px;
+}
+
+.settings-card {
+  max-width: 500px;
+  background: #fff7ed;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.settings-card h2 {
+  margin-bottom: 20px;
+  color: #9a3412;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.settings-field label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #7c2d12;
+}
+
+.settings-field input,
+.user-search-box input {
+  padding: 11px 14px;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  outline: none;
+}
+
+.settings-field input:focus,
+.user-search-box input:focus {
+  border-color: #f97316;
+}
+
+.settings-save-btn,
+.export-btn,
+.user-search-box button {
+  background: #f97316;
+  color: white;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.settings-save-btn:hover,
+.export-btn:hover,
+.user-search-box button:hover {
+  background: #ea580c;
+}
+
+.admin-settings-page {
+  min-height: calc(100vh - 80px);
+  padding: 50px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(154, 52, 18, 0.14), transparent 35%),
+    linear-gradient(135deg, #fff7ed 0%, #ffedd5 45%, #ffffff 100%);
+}
+
+.settings-card {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 34px;
+  border-radius: 24px;
+  box-shadow:
+    0 20px 45px rgba(124, 45, 18, 0.12),
+    0 8px 18px rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(253, 186, 116, 0.65);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 7px;
+  width: 100%;
+  background: linear-gradient(90deg, #f97316, #fb923c, #fed7aa);
+}
+
+.settings-card h2 {
+  margin: 10px 0 8px;
+  color: #7c2d12;
+  font-size: 28px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.settings-card h2::after {
+  content: "Manage your app pricing and free trial limits";
+  display: block;
+  margin-top: 8px;
+  color: #9a3412;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-card form {
+  margin-top: 30px;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 22px;
+}
+
+.settings-field label {
+  font-weight: 700;
+  margin-bottom: 9px;
+  color: #7c2d12;
+  font-size: 15px;
+}
+
+.settings-field input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid #fed7aa;
+  border-radius: 14px;
+  outline: none;
+  font-size: 16px;
+  background: #fffaf5;
+  color: #431407;
+  transition: 0.25s ease;
+}
+
+.settings-field input:focus {
+  border-color: #f97316;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.14);
+}
+
+.settings-field input:hover {
+  border-color: #fb923c;
+}
+
+.settings-save-btn {
+  width: 100%;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  border: none;
+  padding: 14px 18px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 12px 24px rgba(249, 115, 22, 0.28);
+  transition: 0.25s ease;
+}
+
+.settings-save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(249, 115, 22, 0.36);
+  background: linear-gradient(135deg, #ea580c, #c2410c);
+}
+
+.settings-save-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.22);
+}
+.users-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.user-search-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.user-search-box input {
+  width: 300px;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.users-table th {
+  background: #ffedd5;
+  color: #7c2d12;
+  padding: 14px;
+  text-align: left;
+}
+
+.users-table td {
+  padding: 14px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badge.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.blocked {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.user-search-box {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.user-search-box input {
+  width: 300px;
+  padding: 10px 14px;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  outline: none;
+}
+
+.user-search-box input:focus {
+  border-color: #f97316;
+}
+
+.user-search-box button,
+.export-btn {
+  background: #f97316;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.user-search-box button:hover,
+.export-btn:hover {
+  background: #ea580c;
+}
+
+.table-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 25px;
+}
+.user-header {
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0px;
+}
+
+.user-header h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.user-search-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 20px auto 30px;
+  margin-top:0px;
+}
+
+.user-search-box input {
+  width: 360px;
+  max-width: 90%;
+}
 @media (max-width: 900px) {
   .user-section {
     padding: 20px;

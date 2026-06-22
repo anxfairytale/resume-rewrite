@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import authApi from "../services/api";
 import "../styles/Profile.css";
 import { toast } from "react-toastify";
 function Profile() {
@@ -8,39 +8,60 @@ function Profile() {
 
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
-  const [loc, setLoc]=useState("");
+  const [loc, setLoc] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [resumes, setResumes] = useState([]);
+  const [dial, setDial] = useState(false);
+  const [resumeToDelete, setResumeToDelete] = useState(false);
   async function fetchMyResumes() {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/resume/my-resumes", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await authApi.get("/resume/my-resumes", {});
       setResumes(res.data);
     } catch (err) {
       console.log(err);
-    ("Could not load resume history", "error");
+      ("Could not load resume history", "error");
     }
   }
   useEffect(() => {
     fetchProfile();
     fetchMyResumes();
   }, []);
+  function openDeleteDialog(resumeId) {
+    setResumeToDelete(resumeId);
+    setDial(true);
+  }
+  async function confirmResumeDelete() {
+    if (!resumeToDelete) return;
+    try {
+      await authApi.delete(`/resume/my-resumes/${resumeToDelete}`);
 
+      setResumes((previousResumes) =>
+        previousResumes.filter(
+          (resume) => resume.id !== resumeToDelete
+        )
+      );
+      toast.success("Successfully deleted the resume");
+    } catch (err) {
+      console.log(err);
+      toast.error(
+        err.response?.data?.message || "Could not delete resume"
+      );
+    } finally {
+      setDial(false);
+      setResumeToDelete(null);
+    }
+  }
+  function cancelDelete() {
+    setDial(false);
+    setResumeToDelete(null);
+  }
   async function fetchProfile() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await axios.get("http://localhost:5000/auth/profile", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      const res = await authApi.get("/auth/profile", {});
       setProfile(res.data);
       setName(res.data.name);
       setLoc(res.data.location);
@@ -57,20 +78,12 @@ function Profile() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await axios.put(
-        "http://localhost:5000/auth/profile",
+      const res = await authApi.put("/auth/profile",
         {
           name,
           dob,
           loc
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
+        },);
       setProfile(res.data.user);
       setEditMode(false);
       toast.success(res.data.message, "success");
@@ -138,15 +151,15 @@ function Profile() {
                     <p>{profile.dob}</p>
                   </div>
                   <div className="profile-info-box">
-                  <span>Phone No</span>
-                  <p>{`${profile.phone.slice(0,2)}*****${profile.phone.slice(7,10)}`}</p>
+                    <span>Phone No</span>
+                    <p>{`${profile.phone.slice(0, 2)}*****${profile.phone.slice(7, 10)}`}</p>
+                  </div>
+                  <div className="profile-info-box">
+                    <span>Location</span>
+                    <p>{profile.location}</p>
+                  </div>
                 </div>
-                <div className="profile-info-box">
-                  <span>Location</span>
-                  <p>{profile.location}</p>
-                </div>
-                </div>
-                
+
                 <button
                   className="profile-primary-btn"
                   onClick={() => setEditMode(true)}
@@ -173,10 +186,10 @@ function Profile() {
                     onChange={(e) => setDob(e.target.value)}
                   />
                 </div>
-              <div className="profile-field">
-                <label>Location</label>
-                <input type="text" value={loc} onChange={(e)=>setLoc(e.target.value)}/>
-              </div>
+                <div className="profile-field">
+                  <label>Location</label>
+                  <input type="text" value={loc} onChange={(e) => setLoc(e.target.value)} />
+                </div>
                 <div className="profile-actions">
                   <button className="profile-primary-btn" type="submit">
                     Save Changes
@@ -195,6 +208,36 @@ function Profile() {
           </div>
 
           <div className="resume-history-card">
+            {dial && (
+              <div className="modal-backdrop">
+                <dialog open className="payment-dialog">
+                  <h2>Delete resume?</h2>
+
+                  <p>
+                    Are you sure you want to delete this resume? This action cannot be
+                    undone.
+                  </p>
+
+                  <div className="payment-actions">
+                    <button
+                      type="button"
+                      onClick={confirmResumeDelete}
+                      className="pay-now-btn"
+                    >
+                      Yes, Delete
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={cancelDelete}
+                      className="later-btn"
+                    >
+                      No, Cancel
+                    </button>
+                  </div>
+                </dialog>
+              </div>
+            )}
             <p className="profile-eyebrow">Resume History</p>
             {resumes.length > 0 ? (
               <div className="resume-list">
@@ -235,6 +278,13 @@ function Profile() {
                       >
                         Download
                       </a>
+                      <button
+                        type="button"
+                        onClick={() => openDeleteDialog(resume.id)}
+                        className="profile-secondary-btn delete-resume-btn"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
