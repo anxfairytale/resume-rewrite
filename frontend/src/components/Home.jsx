@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, {useEffect,useRef, useState} from "react";
+import { useSearchParams } from "react-router-dom";
 import "../styles/Home.css";
 import FileUpload from "./FileUpload";
 import ResumeEditor from "./ResumeEditor";
+import Login from "./Login"
 import authApi from "../services/api";
 import MatchAnalysisModal from "./MatchAnalysisModal";
+import {toast} from "react-toastify";
 function Home() {
+  const authSectionRef=useRef(null);
   const [jobDescription, setJobDescription] = useState("");
   const [resumeFile, setResumeFile] = useState(null);
   const [skills, setSkills] = useState("");
@@ -17,39 +21,94 @@ function Home() {
   const [resumeData, setResumeData] = useState(null);
   const [pdfUrl, setPdfUrl] = useState("");
   const [user, setUser] = useState(null);
-
+  const [resumeMeta,setResumeMeta]=useState({});
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showAuthPanel, setShowAuthPanel] = useState(false);
+  const [pendingRewrite, setPendingRewrite] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const isLoggedIn = Boolean(
+    localStorage.getItem("token") && user
+  );
+  const normalizedPlan = String(user?.plan || "free").trim().toLowerCase();
+  const isProUser = normalizedPlan === "pro";
+  const freeUsesLeft = Number(user?.freeUsesLeft ?? 0);
+  const proUsesLeft = Number(user?.proUsesLeft ?? 0);
+
+  const availableUses = isProUser
+    ? proUsesLeft
+    : freeUsesLeft;
   async function getUser() {
     try {
+      const token = localStorage.getItem("token");
       const storedUser = localStorage.getItem("user");
-      if (!storedUser) {
-        console.log("No user found in localStorage");
-        return;
+
+      if (!token || !storedUser) {
+        setUser(null);
+        return null;
       }
-      const u = JSON.parse(storedUser);
-      const res = await authApi.get(`/auth/user/${u.id}`);
+
+      const parsedUser = JSON.parse(storedUser);
+
+      const res = await authApi.get(
+        `/auth/user/${parsedUser.id}`
+      );
+      console.log("USER FROM BACKEND:", res.data);
+      console.log("PLAN:", res.data.plan);
+      console.log("FREE USES:", res.data.freeUsesLeft);
+      console.log("PRO USES:", res.data.proUsesLeft);
       setUser(res.data);
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify(res.data)
+      );
+
+      return res.data;
     } catch (err) {
       console.log(err);
+
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setUser(null);
+
+      return null;
+    } finally {
+      setLoadingUser(false);
     }
   }
   useEffect(() => {
     getUser();
-  }, [])
-  const [resumeMeta, setResumeMeta] = useState({
-    originalFileName: "",
-    originalFilePath: "",
-    jobDescription: "",
-    skills: "",
-  });
+  }, []);
+  useEffect(() => {
+  if (searchParams.get("auth") === "login") {
+    setShowAuthPanel(true);
 
+    setTimeout(() => {
+      authSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+  }
+}, [searchParams]);
+  function openAuthPanel(){
+    setShowAuthPanel(true);
+    toast.info("Please log in or sign up to continue");
+     setTimeout(() => {
+    authSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, 100);
+  }
   async function handleAnalyzeResume() {
     setPaymentPopUp(false);
     const token = localStorage.getItem("token");
     if (!token) {
-      alert("Please login before generating a resume.");
-      window.location.href = "/login";
+      setPendingRewrite(true);
+      setShowAuthPanel(true);
       return;
     }
 
@@ -90,6 +149,7 @@ function Home() {
         jobDescription: response.data.jobDescription,
         skills: response.data.skills,
       });
+      await getUser();
     } catch (err) {
       console.log(err);
       alert(err.response?.data?.message || "Something went wrong while analyzing the resume.");
@@ -97,13 +157,72 @@ function Home() {
       setAnalyzing(false);
     }
   }
+  async function handleAuthSuccess(authenticatedUser) {
+    if (!authenticatedUser) {
+      return;
+    }
+    const completeUser = await getUser();
+    if (!completeUser) {
+      alert("Could not load your account details");
+      return;
+    }
+    setUser(completeUser);
 
+    localStorage.setItem(
+      "user",
+      JSON.stringify(completeUser)
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("auth-change", {
+        detail: {
+          user: completeUser,
+          loggedOut: false,
+        },
+      })
+    );
+
+    setShowAuthPanel(false);
+    setSearchParams({});
+
+    if (pendingRewrite) {
+      setPendingRewrite(false);
+      continueRewriteFlow(authenticatedUser);
+    }
+  }
+  function continueRewriteFlow(currentUser) {
+    if (!currentUser) {
+      setPendingRewrite(true);
+      setShowAuthPanel(true);
+      return;
+    }
+
+    const plan = String(currentUser.plan || "free")
+      .trim()
+      .toLowerCase();
+    const proUses = Number(currentUser.proUsesLeft ?? 0);
+
+    const freeCredits = Number(currentUser.freeUsesLeft ?? 0);
+    const proCredits = Number(currentUser.proUsesLeft ?? 0);
+
+    console.log("USER CREDIT CHECK:", {
+      id: currentUser.id,
+      plan,
+      freeCredits,
+      proCredits,
+    });
+
+      if (plan === "pro" && proUses > 0) {
+    handleAnalyzeResume();
+    return;
+  }
+    setPaymentPopUp(true);
+  }
   async function handleGenerateFinalPdf() {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      alert("Please login first.");
-      window.location.href = "/login";
+      setShowAuthPanel(true);
       return;
     }
 
@@ -140,11 +259,10 @@ function Home() {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("Please login before payment");
-        window.location.href = "/";
+        setShowAuthPanel(true);
         return;
       }
-      const orderResponse = await authApi.post("/payment/create-order",{},);
+      const orderResponse = await authApi.post("/payment/create-order", {},);
       const order = orderResponse.data;
       const options = {
         key: "rzp_test_T3OP1amnICZid0",
@@ -190,17 +308,62 @@ function Home() {
       alert(err.response?.data?.message || "Payment failed");
     }
   }
-  function handleRewriteClick(){
-    if(!user){
-      alert("Please wait, loading user details");
-      return;
-    }
-    if (user.plan === "pro" && (user.proUsesLeft ?? 0) > 0) {
-    handleAnalyzeResume();
+  async function handleRewriteClick() {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    setPendingRewrite(true);
+    openAuthPanel();
     return;
   }
-  setPaymentPopUp(true);
+
+  const currentUser = await getUser();
+
+  if (!currentUser) {
+    setPendingRewrite(true);
+    openAuthPanel();
+    return;
   }
+
+  continueRewriteFlow(currentUser);
+}
+  useEffect(() => {
+    function handleAuthChange(event) {
+      const updatedUser = event.detail?.user;
+
+      if (updatedUser) {
+        setUser(updatedUser);
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      const storedUser = localStorage.getItem("user");
+
+      if (!token || !storedUser) {
+        setUser(null);
+        setResumeData(null);
+        setMatchAnalysis(null);
+        setShowMatchModal(false);
+        setPdfUrl("");
+        setPaymentPopUp(false);
+        setPendingRewrite(false);
+        setShowAuthPanel(false);
+
+        setResumeMeta({
+          originalFileName: "",
+          originalFilePath: "",
+          jobDescription: "",
+          skills: "",
+        });
+      }
+    }
+
+    window.addEventListener("auth-change", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("auth-change", handleAuthChange);
+    };
+  }, []);
   return (
     <div className="home-page">
       <main className="main-page">
@@ -218,13 +381,15 @@ function Home() {
               <p className="payment-subtitle">
                 Generate more tailored resumes and continue after your free uses end.
               </p>
-              <div className="uses-card">
-                <p>
-                  {user?.plan === "pro"
-                    ? `You have ${user?.proUsesLeft} pro uses left`
-                    : `You have ${user?.freeUsesLeft ?? 0} free uses left`}
-                </p>
-              </div>
+              {user && (
+                <div className="uses-card">
+                  <p>
+                    {isProUser
+                      ? `You have ${proUsesLeft} pro uses left`
+                      : `You have ${freeUsesLeft} free uses left`}
+                  </p>
+                </div>
+              )}
               <div className="price-box">
                 <span className="price">₹99</span>
                 <span className="price-note">Pro resume credits</span>
@@ -236,23 +401,34 @@ function Home() {
                 </button>
 
                 <button
+                  type="button"
                   className="later-btn"
-                  disabled={(user?.freeUsesLeft ?? 0) === 0}
+                  disabled={
+                    isProUser
+                      ? proUsesLeft <= 0
+                      : freeUsesLeft <= 0
+                  }
                   onClick={handleAnalyzeResume}
                 >
                   Later
                 </button>
               </div>
+              {isProUser && proUsesLeft <= 0 && (
+                <p className="payment-warning">
+                  You have no Pro uses left. Please purchase more credits to continue.
+                </p>
+              )}
 
-              {(user?.freeUsesLeft ?? 0) === 0 && user?.plan !== "pro" && (
+              {!isProUser && freeUsesLeft <= 0 && (
                 <p className="payment-warning">
                   You have no free uses left. Please upgrade to continue.
                 </p>
               )}
+
             </dialog>
           </div>
         )}
-        {!resumeData ? (
+        {!resumeData || !isLoggedIn ? (
           <section className="upload-layout">
             <section className="left-section">
               {dial && (
@@ -398,9 +574,15 @@ function Home() {
                   </p>
                 )}
               </div>
-              <div className="form-card">
-                <p>{user?.plan === "pro" ? `You have ${user?.proUsesLeft} pro uses left` : `You have ${user?.freeUsesLeft} free uses left`}</p>
-              </div>
+              {user && (
+                <div className="form-card">
+                  <p>
+                    {isProUser
+                      ? `You have ${proUsesLeft} pro uses left`
+                      : `You have ${freeUsesLeft} free uses left`}
+                  </p>
+                </div>
+              )}
               <button
                 className="generate-btn"
                 onClick={handleRewriteClick}
@@ -409,28 +591,78 @@ function Home() {
                 {analyzing ? "Creating Editable Sections..." : "Rewrite Resume"}
               </button>
             </section>
-            <section className="right-section">
-              <div className="preview-header">
-                <div>
-                  <p className="eyebrow">Step 2</p>
-                  <h2>Review Resume</h2>
-                </div>
+            <section className="right-section"  ref={authSectionRef}>
+              {showAuthPanel ? (
+                <div className="inline-auth-panel">
+                  <div className="inline-auth-header">
+                    <div>
+                      <p className="eyebrow">Account</p>
+                      <h2>Continue with 2xResume</h2>
+                      <p>
+                        Log in or create an account to rewrite and save your
+                        resume.
+                      </p>
+                    </div>
 
-                <button className="download-btn" disabled>
-                  Download
-                </button>
-              </div>
+                    <button
+                      type="button"
+                      className="inline-auth-close"
+                      onClick={() => {
+                        setShowAuthPanel(false);
+                        setPendingRewrite(false);
+                        setSearchParams({});
+                      }}
+                      aria-label="Close authentication panel"
+                    >
+                      ×
+                    </button>
+                  </div>
 
-              <div className="preview-box">
-                <div className="empty-preview">
-                  <div className="empty-icon">📄</div>
-                  <h3>Your editable resume sections will appear here</h3>
-                  <p>
-                    After you paste a job description and upload your resume,
-                    click “Rewrite Resume” to review and edit the generated sections.
-                  </p>
+                  <Login
+                    embedded
+                    onAuthSuccess={handleAuthSuccess}
+                  />
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="preview-header">
+                    <div>
+                      <p className="eyebrow">Step 2</p>
+                      <h2>Review Resume</h2>
+                    </div>
+
+                    <button className="download-btn" disabled>
+                      Download
+                    </button>
+                  </div>
+
+                  <div className="preview-box">
+                    <div className="empty-preview">
+                      <div className="empty-icon">📄</div>
+
+                      <h3>
+                        Your editable resume sections will appear here
+                      </h3>
+
+                      <p>
+                        After you paste a job description and upload your
+                        resume, click “Rewrite Resume” to review and edit the
+                        generated sections.
+                      </p>
+
+                      {!user && !loadingUser && (
+                        <button
+                          type="button"
+                          className="preview-login-btn"
+                          onClick={() => setShowAuthPanel(true)}
+                        >
+                          Login or Sign Up
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </section>
           </section>
         ) : (

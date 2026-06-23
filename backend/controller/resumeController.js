@@ -288,6 +288,9 @@ router.post("/analyze", authenticateToken, upload.single("resume"), async (req, 
         message: "User not found"
       });
     }
+    const plan = String(user.plan || "free")
+      .trim()
+      .toLowerCase();
     if (user.isBlocked) {
       return res.status(403).json({
         message: "Your account has been blocked."
@@ -454,20 +457,45 @@ router.get("/my-resumes", authenticateToken, async (req, res) => {
   }
 }
 );
-router.delete("/my-resumes/:id",authenticateToken,async (req,res)=>{
-  try{
-    const id=req.params.id;
-    const resume=await Resume.findOne({where:{id:id,
-      userId:req.user.id
-    }});
-    if (!resume) {
-        return res.status(404).json({
-          message: "Resume not found or you are not allowed to delete it",
-        });
+router.delete("/my-resumes/:id", authenticateToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const resume = await Resume.findOne({
+      where: {
+        id: id,
+        userId: req.user.id
       }
+    });
+    if (!resume) {
+      return res.status(404).json({
+        message: "Resume not found or you are not allowed to delete it",
+      });
+    }
+    if (resume.originalFilePath) {
+      try {
+        const originalPath = path.resolve(resume.originalFilePath);
+        await fs.promises.unlink(originalPath);
+        console.log("Original Resume deleted:", originalPath);
+      } catch (fileError) {
+        if (fileError !== "ENOENT") {
+          console.log("Could not delete original resume:", fileError);
+        }
+      }
+    }
+    if (resume.generatedPdfPath) {
+      try {
+        const generatedPath = path.resolve(resume.generatedPdfPath);
+        await fs.promises.unlink(generatedPath);
+        console.log("Generated PDF deleted", generatedPath);
+      } catch (fileError) {
+        if (fileError.code !== "ENOENT") {
+          console.log("Could not delete generated PDF:", fileError);
+        }
+      }
+    }
     resume.destroy();
-    res.status(200).json({message:"Successfully deleted the resume"});
-  }catch(err){
+    res.status(200).json({ message: "Successfully deleted the resume" });
+  } catch (err) {
     console.log(err);
     res.status(400).json(err);
   }

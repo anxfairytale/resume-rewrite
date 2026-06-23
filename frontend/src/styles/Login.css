@@ -220,7 +220,68 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+.otp-resend-text {
+  margin: 7px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
 
+.otp-resend-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #d47706;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.otp-resend-btn:hover {
+  text-decoration: underline;
+}
+.auth-embedded {
+  width: 100%;
+  min-height: auto;
+  padding: 0;
+  background: transparent;
+}
+
+.auth-embedded .auth-card {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 10px 0 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.auth-embedded .auth-brand {
+  display: none;
+}
+
+.auth-embedded .auth-heading {
+  margin-bottom: 22px;
+}
+
+.auth-embedded .auth-heading h2 {
+  margin: 5px 0 8px;
+  font-size: 25px;
+  color: #1e293b;
+}
+
+.auth-embedded .auth-form {
+  width: 100%;
+}
+
+.auth-embedded .auth-field input,
+.auth-embedded .auth-field select {
+  width: 100%;
+}
+
+.auth-embedded .auth-btn {
+  width: 100%;
+}
 .auth-field select option {
   color: #4f252e;
 }

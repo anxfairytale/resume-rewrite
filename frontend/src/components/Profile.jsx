@@ -73,28 +73,30 @@ function Profile() {
   }
 
   async function updateProfile(e) {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      const token = localStorage.getItem("token");
+  try {
+    const res = await authApi.put("/auth/profile", {
+      name,
+      dob,
+      loc,
+    });
 
-      const res = await authApi.put("/auth/profile",
-        {
-          name,
-          dob,
-          loc
-        },);
-      setProfile(res.data.user);
-      setEditMode(false);
-      toast.success(res.data.message, "success");
-    } catch (err) {
-      console.log(err);
-      toast.error(
-        err.response?.data?.message || "Could not update profile",
-        "error"
-      );
-    }
+    setProfile((previousProfile) => ({
+      ...previousProfile,
+      ...res.data.user,
+    }));
+
+    setEditMode(false);
+    toast.success(res.data.message || "Profile updated successfully");
+  } catch (err) {
+    console.log(err);
+
+    toast.error(
+      err.response?.data?.message || "Could not update profile"
+    );
   }
+}
   if (!profile) {
     return (
       <section className="profile-page">
@@ -152,7 +154,11 @@ function Profile() {
                   </div>
                   <div className="profile-info-box">
                     <span>Phone No</span>
-                    <p>{`${profile.phone.slice(0, 2)}*****${profile.phone.slice(7, 10)}`}</p>
+                    <p><p>
+                      {profile.phone
+                        ? `${profile.phone.slice(0, 2)}*****${profile.phone.slice(-3)}`
+                        : "Not provided"}
+                    </p></p>
                   </div>
                   <div className="profile-info-box">
                     <span>Location</span>

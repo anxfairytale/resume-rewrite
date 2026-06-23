@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { BASE_URL } from "../services/api";
 import axios from "axios";
 import "../styles/Login.css";
-import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify"
 import { Country, State, City } from "country-state-city";
-function Login() {
+function Login({ embedded = false, onAuthSuccess }) {
+  const navigate = useNavigate();
   const [isSignup, setIsSignup] = useState(false);
   const [number, setNumber] = useState("");
-  const [location, setLocation] = useState("")
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,20 +53,34 @@ function Login() {
       console.log(err);
     }
   }
-  useEffect(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-  }, [])
   async function handleAuth(e) {
     e.preventDefault();
+
+    if (!email.trim()) {
+      toast.error("Please enter your email");
+      return;
+    }
+
+    if (!password.trim()) {
+      toast.error("Please enter your password");
+      return;
+    }
+
     if (isSignup && !otpVerified) {
       toast.error("Please verify your OTP before signing up");
       return;
     }
-    if(isSignup && (!country || !state|| !city)){
-      alert("Please select your country, state and city");
+
+    if (isSignup && (!name.trim() || !number.trim() || !dob)) {
+      toast.error("Please fill in all required fields");
       return;
     }
+
+    if (isSignup && (!country || !state || !city)) {
+      toast.error("Please select your country, state and city");
+      return;
+    }
+
     try {
       setLoading(true);
       setMessage("");
@@ -76,42 +90,91 @@ function Login() {
         : `${BASE_URL}/auth/login`;
 
       const payload = isSignup
-        ? { name, email, number, password, dob, country, state, city }
-        : { email, password };
+        ? {
+          name,
+          email,
+          number,
+          password,
+          dob,
+          country,
+          state,
+          city,
+        }
+        : {
+          email,
+          password,
+        };
 
       const res = await axios.post(url, payload);
 
-      setMessage(res.data.message);
+      setMessage(res.data.message || "");
 
-      if (!isSignup) {
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-        if (res.data.user.role === 'admin') {
-          window.location.href = "/users";
-        }
-        else {
-          window.location.href = "/home";
-        }
-      } else {
+      if (isSignup) {
+        toast.success(
+          res.data.message || "Account created successfully. Please log in."
+        );
+
         setIsSignup(false);
         setPassword("");
         setOtp("");
         setOtpSent(false);
         setOtpVerified(false);
+
+        return;
+      }
+
+      localStorage.setItem("token", res.data.token);
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify(res.data.user)
+      );
+      window.dispatchEvent(
+        new CustomEvent("auth-change", {
+          detail: {
+            user: res.data.user,
+            loggedOut: false,
+          },
+        })
+      );
+
+      toast.success("Logged in successfully");
+
+      if (res.data.user.role === "admin") {
+        navigate("/users");
+        return;
+      }
+
+      if (embedded) {
+        onAuthSuccess?.(res.data.user);
+
+        if (res.data.user.role === "admin") {
+          navigate("/users");
+        }
+
+        return;
+      }
+      if (res.data.user.role === "admin") {
+        navigate("/users");
+      } else {
+        navigate("/");
       }
     } catch (err) {
       console.log(err);
 
-      setMessage(
-        err.response?.data?.message || "Something went wrong. Please try again."
-      );
+      const errorMessage =
+        err.response?.data?.message ||
+        "Something went wrong. Please try again.";
+
+      setMessage(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <section className="auth-page">
+    <section className={embedded ? "auth-embedded" : "auth-page"}>
       <div className="auth-card">
         <div className="auth-brand">
           <div className="auth-logo">R</div>
@@ -187,7 +250,18 @@ function Login() {
                   {otpVerified ? "Verified" : "Verify"}
                 </button>
               </div>
-              <p>Didn't receive OTP? <span onClick={sendOtp} style={{ color: "red" }}>Click here to resend</span></p>
+              {!otpVerified && (
+                <p className="otp-resend-text">
+                  Didn't receive OTP?{" "}
+                  <button
+                    type="button"
+                    className="otp-resend-btn"
+                    onClick={sendOtp}
+                  >
+                    Click here to resend
+                  </button>
+                </p>
+              )}
             </div>
           )}
 
@@ -273,7 +347,17 @@ function Login() {
 
         <p className="switch-auth">
           {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
-          <button type="button" onClick={() => setIsSignup(!isSignup)}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignup((previous) => !previous);
+              setMessage("");
+              setPassword("");
+              setOtp("");
+              setOtpSent(false);
+              setOtpVerified(false);
+            }}
+          >
             {isSignup ? "Login" : "Sign up"}
           </button>
         </p>
