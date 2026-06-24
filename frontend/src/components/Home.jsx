@@ -1,4 +1,4 @@
-import React, {useEffect,useRef, useState} from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import "../styles/Home.css";
 import FileUpload from "./FileUpload";
@@ -6,9 +6,9 @@ import ResumeEditor from "./ResumeEditor";
 import Login from "./Login"
 import authApi from "../services/api";
 import MatchAnalysisModal from "./MatchAnalysisModal";
-import {toast} from "react-toastify";
+import { toast } from "react-toastify";
 function Home() {
-  const authSectionRef=useRef(null);
+  const authSectionRef = useRef(null);
   const [jobDescription, setJobDescription] = useState("");
   const [resumeFile, setResumeFile] = useState(null);
   const [skills, setSkills] = useState("");
@@ -21,7 +21,7 @@ function Home() {
   const [resumeData, setResumeData] = useState(null);
   const [pdfUrl, setPdfUrl] = useState("");
   const [user, setUser] = useState(null);
-  const [resumeMeta,setResumeMeta]=useState({});
+  const [resumeMeta, setResumeMeta] = useState({});
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -82,26 +82,26 @@ function Home() {
     getUser();
   }, []);
   useEffect(() => {
-  if (searchParams.get("auth") === "login") {
-    setShowAuthPanel(true);
+    if (searchParams.get("auth") === "login") {
+      setShowAuthPanel(true);
 
+      setTimeout(() => {
+        authSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    }
+  }, [searchParams]);
+  function openAuthPanel() {
+    setShowAuthPanel(true);
+    toast.info("Please log in or sign up to continue");
     setTimeout(() => {
       authSectionRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
     }, 100);
-  }
-}, [searchParams]);
-  function openAuthPanel(){
-    setShowAuthPanel(true);
-    toast.info("Please log in or sign up to continue");
-     setTimeout(() => {
-    authSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, 100);
   }
   async function handleAnalyzeResume() {
     setPaymentPopUp(false);
@@ -187,7 +187,7 @@ function Home() {
 
     if (pendingRewrite) {
       setPendingRewrite(false);
-      continueRewriteFlow(authenticatedUser);
+      continueRewriteFlow(completeUser);
     }
   }
   function continueRewriteFlow(currentUser) {
@@ -212,10 +212,10 @@ function Home() {
       proCredits,
     });
 
-      if (plan === "pro" && proUses > 0) {
-    handleAnalyzeResume();
-    return;
-  }
+    if (plan === "pro" && proUses > 0) {
+      handleAnalyzeResume();
+      return;
+    }
     setPaymentPopUp(true);
   }
   async function handleGenerateFinalPdf() {
@@ -309,24 +309,24 @@ function Home() {
     }
   }
   async function handleRewriteClick() {
-  const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-  if (!token) {
-    setPendingRewrite(true);
-    openAuthPanel();
-    return;
+    if (!token) {
+      setPendingRewrite(true);
+      openAuthPanel();
+      return;
+    }
+
+    const currentUser = await getUser();
+
+    if (!currentUser) {
+      setPendingRewrite(true);
+      openAuthPanel();
+      return;
+    }
+
+    continueRewriteFlow(currentUser);
   }
-
-  const currentUser = await getUser();
-
-  if (!currentUser) {
-    setPendingRewrite(true);
-    openAuthPanel();
-    return;
-  }
-
-  continueRewriteFlow(currentUser);
-}
   useEffect(() => {
     function handleAuthChange(event) {
       const updatedUser = event.detail?.user;
@@ -591,7 +591,7 @@ function Home() {
                 {analyzing ? "Creating Editable Sections..." : "Rewrite Resume"}
               </button>
             </section>
-            <section className="right-section"  ref={authSectionRef}>
+            <section className="right-section" ref={authSectionRef}>
               {showAuthPanel ? (
                 <div className="inline-auth-panel">
                   <div className="inline-auth-header">

@@ -1340,7 +1340,7 @@ input {
     );
 }
 
-.empty-preview {
+.view {
   width: 100%;
   max-width: 430px;
 
