@@ -7,8 +7,102 @@ import Login from "./Login"
 import authApi from "../services/api";
 import MatchAnalysisModal from "./MatchAnalysisModal";
 import { toast } from "react-toastify";
+import ResumeCustomizationBox from "./ResumeCustomizationBox";
+const DEFAULT_SECTION_ORDER = [
+  "summary",
+  "skills",
+  "experience",
+  "projects",
+  "education",
+  "certifications",
+  "achievements",
+];
+
+const TEMPLATE_STYLE_DEFAULTS = {
+  executive: {
+    accentColor: "#d47706",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 25,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
+    headerAlignment: "left",
+    headerBackground: "tint",
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "inline",
+    contactSeparator: "pipe",
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
+    hiddenSections: [],
+  },
+
+  classic: {
+    accentColor: "#111827",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 24,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
+    headerAlignment: "center",
+    headerBackground: "none",
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "comma-separated",
+    contactSeparator: "pipe",
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
+    hiddenSections: [],
+  },
+
+  sidebar: {
+    accentColor: "#d47706",
+    fontFamily: "Helvetica",
+    bodyFontSize: 9.8,
+    headingFontSize: 11,
+    nameFontSize: 21,
+    lineGap: 3,
+    sectionSpacing: 0.7,
+    pageMargin: 50,
+    headerAlignment: "left",
+    headerBackground: "tint",
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "bullets",
+    contactSeparator: "pipe",
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
+    hiddenSections: [],
+  },
+};
+
+function getTemplateStyle(templateName) {
+  const template =
+    TEMPLATE_STYLE_DEFAULTS[templateName] ||
+    TEMPLATE_STYLE_DEFAULTS.executive;
+
+  return {
+    ...template,
+    sectionOrder: [...template.sectionOrder],
+    hiddenSections: [...template.hiddenSections],
+  };
+}
+
 function Home() {
   const authSectionRef = useRef(null);
+  const pdfPanelRef = useRef(null);
+  const [pdfPanelHeight, setPdfPanelHeight] =
+    useState(0);
   const [jobDescription, setJobDescription] = useState("");
   const [resumeFile, setResumeFile] = useState(null);
   const [skills, setSkills] = useState("");
@@ -17,6 +111,10 @@ function Home() {
   const [matchAnalysis, setMatchAnalysis] = useState(null);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("executive");
+  const [styleConfig, setStyleConfig] = useState(
+    () => getTemplateStyle("executive")
+  );
+  const [styleHistory, setStyleHistory] = useState([]);
   const [paymentPopUp, setPaymentPopUp] = useState(false);
   const [resumeData, setResumeData] = useState(null);
   const [pdfUrl, setPdfUrl] = useState("");
@@ -79,6 +177,47 @@ function Home() {
     }
   }
   useEffect(() => {
+    const pdfPanel =
+      pdfPanelRef.current;
+
+    if (!pdfPanel) {
+      return;
+    }
+
+    function updatePanelHeight() {
+      const height =
+        pdfPanel.getBoundingClientRect()
+          .height;
+
+      setPdfPanelHeight(
+        Math.ceil(height)
+      );
+    }
+
+    updatePanelHeight();
+
+    const resizeObserver =
+      new ResizeObserver(() => {
+        updatePanelHeight();
+      });
+
+    resizeObserver.observe(pdfPanel);
+
+    window.addEventListener(
+      "resize",
+      updatePanelHeight
+    );
+
+    return () => {
+      resizeObserver.disconnect();
+
+      window.removeEventListener(
+        "resize",
+        updatePanelHeight
+      );
+    };
+  }, [resumeData, pdfUrl]);
+  useEffect(() => {
     getUser();
   }, []);
   useEffect(() => {
@@ -93,6 +232,12 @@ function Home() {
       }, 100);
     }
   }, [searchParams]);
+  function handleTemplateSelect(templateName) {
+    setSelectedTemplate(templateName);
+    setStyleConfig(getTemplateStyle(templateName));
+    setStyleHistory([]);
+    setPdfUrl("");
+  }
   function openAuthPanel() {
     setShowAuthPanel(true);
     toast.info("Please log in or sign up to continue");
@@ -218,17 +363,26 @@ function Home() {
     }
     setPaymentPopUp(true);
   }
-  async function handleGenerateFinalPdf() {
+  async function generatePdfWithStyle(
+    nextStyle,
+    {
+      saveToHistory = true,
+      showSuccess = true,
+      showError = true,
+      resumeOverride = resumeData,
+    } = {}
+  ) {
     const token = localStorage.getItem("token");
 
     if (!token) {
       setShowAuthPanel(true);
-      return;
+      throw new Error("Please log in first");
     }
 
-    if (!resumeData) {
-      alert("Please generate and review resume sections first.");
-      return;
+    if (!resumeOverride) {
+      throw new Error(
+        "Please generate and review the resume first"
+      );
     }
 
     try {
@@ -237,24 +391,132 @@ function Home() {
       const response = await authApi.post(
         "/resume/generate-pdf",
         {
-          resumeData,
+          resumeData: resumeOverride,
           template: selectedTemplate,
+          styleConfig: nextStyle,
+          saveToHistory,
           originalFileName: resumeMeta.originalFileName,
           originalFilePath: resumeMeta.originalFilePath,
           jobDescription: resumeMeta.jobDescription,
           skills: resumeMeta.skills,
-        },
+        }
       );
 
       setPdfUrl(response.data.pdfUrl);
-      alert("Final PDF generated successfully.");
+
+      if (showSuccess) {
+        toast.success("Final PDF generated successfully");
+      }
+
+      return response.data;
     } catch (err) {
-      console.log(err);
-      alert(err.response?.data?.message || "Something went wrong while generating PDF.");
+      console.log("Generate PDF error:", err);
+
+      if (showError) {
+        toast.error(
+          err.response?.data?.message ||
+          err.message ||
+          "Something went wrong while generating the PDF"
+        );
+      }
+
+      throw err;
     } finally {
       setGeneratingPdf(false);
     }
   }
+
+  async function handleGenerateFinalPdf() {
+    try {
+      await generatePdfWithStyle(styleConfig, {
+        saveToHistory: true, showSuccess: true, showError: true
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  }
+  async function handleStyleUpdate(nextStyle) {
+    const previousStyle = styleConfig;
+    await generatePdfWithStyle(nextStyle, {
+      saveToHistory: false,
+      showSuccess: false,
+      showError: false,
+    });
+    setStyleHistory((previous) => [
+      ...previous,
+      previousStyle,
+    ]);
+
+    setStyleConfig(nextStyle);
+  }
+  async function handleUndoStyle() {
+    if (styleHistory.length === 0) {
+      return;
+    }
+
+    const previousStyle =
+      styleHistory[styleHistory.length - 1];
+
+    await generatePdfWithStyle(previousStyle, {
+      saveToHistory: false,
+      showSuccess: false,
+      showError: false,
+    });
+
+    setStyleConfig(previousStyle);
+
+    setStyleHistory((previous) =>
+      previous.slice(0, -1)
+    );
+  }
+  async function handleContentUpdate(contentChanges) {
+    if (!Array.isArray(contentChanges) || contentChanges.length === 0) {
+      return;
+    }
+
+    let updatedResume = {
+      ...resumeData,
+      skills: Array.isArray(resumeData?.skills)
+        ? [...resumeData.skills]
+        : [],
+    };
+
+    contentChanges.forEach((change) => {
+      const value = String(change.value || "").trim();
+
+      if (!value) {
+        return;
+      }
+
+      if (change.action === "add_skill") {
+        const alreadyExists = updatedResume.skills.some(
+          (skill) =>
+            String(skill).trim().toLowerCase() === value.toLowerCase()
+        );
+
+        if (!alreadyExists) {
+          updatedResume.skills.push(value);
+        }
+      }
+
+      if (change.action === "remove_skill") {
+        updatedResume.skills = updatedResume.skills.filter(
+          (skill) =>
+            String(skill).trim().toLowerCase() !== value.toLowerCase()
+        );
+      }
+    });
+
+    await generatePdfWithStyle(styleConfig, {
+      saveToHistory: false,
+      showSuccess: false,
+      showError: true,
+      resumeOverride: updatedResume,
+    });
+
+    setResumeData(updatedResume);
+  }
+
   async function handlePayment() {
     try {
       const token = localStorage.getItem("token");
@@ -508,7 +770,7 @@ function Home() {
                     type="button"
                     className={`template-card ${selectedTemplate === "executive" ? "active-template" : ""
                       }`}
-                    onClick={() => setSelectedTemplate("executive")}
+                    onClick={() => handleTemplateSelect("executive")}
                   >
                     <div className="template-preview modern-template-preview">
                       <div></div>
@@ -524,7 +786,7 @@ function Home() {
                     type="button"
                     className={`template-card ${selectedTemplate === "classic" ? "active-template" : ""
                       }`}
-                    onClick={() => setSelectedTemplate("classic")}
+                    onClick={() => handleTemplateSelect("classic")}
                   >
                     <div className="template-preview classic-template-preview">
                       <div></div>
@@ -540,7 +802,7 @@ function Home() {
                     type="button"
                     className={`template-card ${selectedTemplate === "sidebar" ? "active-template" : ""
                       }`}
-                    onClick={() => setSelectedTemplate("sidebar")}
+                    onClick={() => handleTemplateSelect("sidebar")}
                   >
                     <div className="template-preview sidebar-template-preview">
                       <div></div>
@@ -723,13 +985,13 @@ function Home() {
             )}
             <div className="editor-preview-layout">
               <section className="editor-panel">
-                <ResumeEditor
-                  resumeData={resumeData}
-                  setResumeData={setResumeData}
-                />
+                  <ResumeEditor
+                    resumeData={resumeData}
+                    setResumeData={setResumeData}
+                  />
               </section>
 
-              <section className="pdf-panel">
+              <section className="pdf-panel" ref={pdfPanelRef}>
                 <div className="pdf-preview-box">
                   {pdfUrl ? (
                     <iframe
@@ -737,6 +999,7 @@ function Home() {
                       title="Generated Resume Preview"
                       className="pdf-preview-frame"
                     />
+
                   ) : (
                     <div className="empty-preview">
                       <h3>PDF preview will appear here</h3>
@@ -744,6 +1007,16 @@ function Home() {
                     </div>
                   )}
                 </div>
+                {pdfUrl && (
+                  <ResumeCustomizationBox
+                    currentStyle={styleConfig}
+                    selectedTemplate={selectedTemplate}
+                    onStyleUpdate={handleStyleUpdate}
+                    onContentUpdate={handleContentUpdate}
+                    onUndo={handleUndoStyle}
+                    canUndo={styleHistory.length > 0}
+                  />
+                )}
               </section>
             </div>
             {showMatchModal && matchAnalysis && (

@@ -205,10 +205,17 @@ router.put("/profile", authenticateToken, async (req, res) => {
         message: "User not found",
       })
     }
+    const arr=loc.split(",");
+    console.log(arr[0]);
+    console.log(arr[1]);
+    console.log(arr[2]);
     await user.update({
       name: name,
       dob: dob,
-      location: loc
+      location: loc,
+      city:arr[0],
+      state:arr[1],
+      country:arr[2]
     })
     res.json({
       message: "Profile updated successfully",
