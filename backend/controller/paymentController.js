@@ -10,6 +10,31 @@ const razorpay = new Razorpay({
 }); const authenticateToken = require('../middleware/authMiddleware');
 const db = require("../model/index");
 const User = db.User;
+router.get("/price",authenticateToken,async (req, res) => {
+    try {
+      const settings = await Setting.findOne();
+      if (!settings) {
+        return res.status(404).json({
+          message: "Payment settings are not configured",
+        });
+      }
+      const paidAmount = Number(settings.paidAmount);
+      if (!Number.isFinite(paidAmount) ||paidAmount <= 0) {
+        return res.status(400).json({
+          message: "Invalid payment amount configured",
+        });
+      }
+      return res.status(200).json({
+        paidAmount,
+      });
+    } catch (err) {
+      console.log("Fetch payment price error:", err);
+      return res.status(500).json({
+        message: "Could not fetch payment price",
+      });
+    }
+  }
+);
 router.post("/create-order", authenticateToken, async (req, res) => {
     try {
         let settings = await Setting.findOne();
@@ -17,6 +42,7 @@ router.post("/create-order", authenticateToken, async (req, res) => {
             settings = await Setting.create({
                 freeTrialUses: 3,
                 paidAmount: 99,
+                proUses:10
             });
         }
         const amount=settings.paidAmount;
@@ -48,10 +74,18 @@ router.post("/verify-payment", authenticateToken, async (req, res) => {
                 message: "Payment verification failed",
             });
         }
+        let settings = await Setting.findOne();
+        if (!settings) {
+            settings = await Setting.create({
+                freeTrialUses: 3,
+                paidAmount: 99,
+                proUses:10
+            });
+        }
         await User.update(
             {
                 plan: "pro",
-                proUsesLeft: 10,
+                proUsesLeft:settings.proUses,
             },
             {
                 where: { id: req.user.id },

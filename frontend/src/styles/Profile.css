@@ -421,3 +421,84 @@
   font-weight: bolder;
   font-style: italic;
 }
+.resume-history-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  margin: 8px 0 14px;
+
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.resume-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  margin-top: 20px;
+  padding-top: 18px;
+
+  border-top: 1px solid #e2e8f0;
+}
+
+.pagination-btn {
+  min-width: 105px;
+  padding: 9px 14px;
+
+  border: 1px solid rgba(212, 119, 6, 0.25);
+  border-radius: 10px;
+
+  background: #fff7ed;
+  color: #a85708;
+
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  border-color: #d47706;
+  background: #ffedd5;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  min-width: 95px;
+
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .resume-pagination {
+    gap: 8px;
+  }
+
+  .pagination-btn {
+    min-width: auto;
+    padding: 9px 11px;
+    font-size: 12px;
+  }
+
+  .pagination-info {
+    min-width: auto;
+    font-size: 12px;
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/Home.css";
+import brandIcon from "../assets/logo.png"
 function readStoredUser() {
   try {
     const storedUser = localStorage.getItem("user");
@@ -12,6 +13,10 @@ function readStoredUser() {
 }
 function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
+  function isActive(path) {
+    return location.pathname === path;
+  }
   const [user, setUser] = useState(readStoredUser);
   const token = localStorage.getItem("token");
   const isLoggedIn = Boolean(token && user);
@@ -63,10 +68,10 @@ function Navbar() {
         onClick={() => navigate("/")}
         style={{ cursor: "pointer" }}
       >
-        <div className="brand-icon">2x</div>
+        <div className="brand-icon"><img className="brand-logo" src={brandIcon} /></div>
 
         <div>
-          <h1>2xResume</h1>
+          <h1>ResumeBot</h1>
           <p>Rewrite your resume for every job</p>
         </div>
       </div>
@@ -90,7 +95,7 @@ function Navbar() {
               <>
                 <button
                   type="button"
-                  className="nav-btn"
+                  className={`nav-btn ${isActive("/") ? "active-nav-btn" : ""}`}
                   onClick={() => navigate("/")}
                 >
                   Home
@@ -98,7 +103,10 @@ function Navbar() {
 
                 <button
                   type="button"
-                  className="nav-btn"
+                  className={`nav-btn ${isActive("/profile")
+                    ? "active-nav-btn"
+                    : ""
+                    }`}
                   onClick={() => navigate("/profile")}
                 >
                   Profile
@@ -110,7 +118,10 @@ function Navbar() {
               <>
                 <button
                   type="button"
-                  className="nav-btn"
+                  className={`nav-btn ${isActive("/users")
+                    ? "active-nav-btn"
+                    : ""
+                    }`}
                   onClick={() => navigate("/users")}
                 >
                   Users
@@ -118,7 +129,10 @@ function Navbar() {
 
                 <button
                   type="button"
-                  className="nav-btn"
+                  className={`nav-btn ${isActive("/free-users")
+                    ? "active-nav-btn"
+                    : ""
+                    }`}
                   onClick={() => navigate("/free-users")}
                 >
                   Free Users
@@ -126,7 +140,10 @@ function Navbar() {
 
                 <button
                   type="button"
-                  className="nav-btn"
+                  className={`nav-btn ${isActive("/paid-users")
+                      ? "active-nav-btn"
+                      : ""
+                    }`}
                   onClick={() => navigate("/paid-users")}
                 >
                   Paid Users
@@ -134,7 +151,10 @@ function Navbar() {
 
                 <button
                   type="button"
-                  className="nav-btn"
+                  className={`nav-btn ${isActive("/settings")
+                      ? "active-nav-btn"
+                      : ""
+                    }`}
                   onClick={() => navigate("/settings")}
                 >
                   Settings

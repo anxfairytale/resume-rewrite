@@ -2,10 +2,13 @@ import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import authApi from "../../services/api";
 import "../../styles/Users.css";
-
 function Users({ view = "all" }) {
     const [users, setUsers] = useState([]);
+    const [statsUsers, setStatsUsers] = useState([]);
     const [search, setSearch] = useState("");
+    const USERS_PER_PAGE = 10;
+    const [freePage, setFreePage] = useState(1);
+    const [paidPage, setPaidPage] = useState(1);
     async function getUsers() {
         try {
             let url = "/auth/users";
@@ -43,21 +46,67 @@ function Users({ view = "all" }) {
             setUsers([]);
         }
     }
-
+    async function getStatsUsers() {
+        try {
+            const res = await authApi.get("/auth/users");
+            setStatsUsers(Array.isArray(res.data) ? res.data : []);
+        } catch (err) {
+            console.log("Could not fetch user statistics:", err);
+            setStatsUsers([]);
+        }
+    }
     useEffect(() => {
-        const delay=setTimeout(()=>{
+        const delay = setTimeout(() => {
             getUsers();
-        },400);
-        return ()=>clearTimeout(delay);
-    }, [view,search]);
-
+        }, 400);
+        return () => clearTimeout(delay);
+    }, [view, search]);
+    useEffect(() => {
+        if (view === "all") {
+            getStatsUsers();
+        }
+    }, [view]);
     const freeUsers = users.filter((user) => user.plan === "free");
     const paidUsers = users.filter((user) => user.plan === "pro");
+    const freeTotalPages = Math.ceil(freeUsers.length / USERS_PER_PAGE);
+    const paidTotalPages = Math.ceil(paidUsers.length / USERS_PER_PAGE);
+    const paginatedFreeUsers = freeUsers.slice(
+        (freePage - 1) * USERS_PER_PAGE,
+        freePage * USERS_PER_PAGE
+    );
+    const countableUsers = statsUsers.filter(
+        (user) => user.role !== "admin"
+    );
+
+    const totalUsersCount = countableUsers.length;
+
+    const freeUsersCount = countableUsers.filter(
+        (user) => user.plan === "free"
+    ).length;
+
+    const paidUsersCount = countableUsers.filter(
+        (user) => user.plan === "pro"
+    ).length;
+
+    const blockedUsersCount = countableUsers.filter(
+        (user) => user.isBlocked
+    ).length;
+    const paginatedPaidUsers = paidUsers.slice(
+        (paidPage - 1) * USERS_PER_PAGE,
+        paidPage * USERS_PER_PAGE
+    );
+    useEffect(() => {
+        setFreePage(1);
+        setPaidPage(1);
+    }, [view, search]);
     async function toggleBlock(id) {
         try {
             const response = await authApi.patch(`/auth/users/${id}/block`);
             toast.success(response.data.message);
-            getUsers();
+            await getUsers();
+            if (view === "all") {
+                await getStatsUsers();
+            }
         } catch (err) {
             console.log(err);
             toast.error("Could not block user");
@@ -140,7 +189,7 @@ function Users({ view = "all" }) {
                     <table>
                         <thead>
                             <tr>
-                                <th>Id</th>
+                                <th>SNo</th>
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Phone</th>
@@ -160,9 +209,9 @@ function Users({ view = "all" }) {
                                     </td>
                                 </tr>
                             ) : (
-                                freeUsers.map((user) => (
+                                paginatedFreeUsers.map((user, index) => (
                                     <tr key={user.id}>
-                                        <td>{user.id}</td>
+                                        <td>{(freePage - 1) * USERS_PER_PAGE + index + 1}</td>
                                         <td>{user.name}</td>
                                         <td>{user.email}</td>
                                         <td>{user.phone || "Not provided"}</td>
@@ -192,6 +241,29 @@ function Users({ view = "all" }) {
                         </tbody>
                     </table>
                 </div>
+                {freeUsers.length > USERS_PER_PAGE && (
+                    <div className="pagination">
+                        <button type="button" disabled={freePage === 1}
+                            onClick={() => setFreePage((currentPage) => Math.max(currentPage - 1, 1))}>Previous</button>
+                        <span>
+                            Page {freePage} of {freeTotalPages}
+                        </span>
+                        <button
+                            type="button"
+                            disabled={freePage === freeTotalPages}
+                            onClick={() =>
+                                setFreePage((currentPage) =>
+                                    Math.min(
+                                        currentPage + 1,
+                                        freeTotalPages
+                                    )
+                                )
+                            }
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </>
         )
     }
@@ -214,7 +286,7 @@ function Users({ view = "all" }) {
                     <table>
                         <thead>
                             <tr>
-                                <th>Id</th>
+                                <th>SNo</th>
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Phone</th>
@@ -236,9 +308,9 @@ function Users({ view = "all" }) {
                                     </td>
                                 </tr>
                             ) : (
-                                paidUsers.map((user) => (
+                                paginatedPaidUsers.map((user, index) => (
                                     <tr key={user.id}>
-                                        <td>{user.id}</td>
+                                        <td>{(paidPage - 1) * USERS_PER_PAGE + index + 1}</td>
                                         <td>{user.name}</td>
                                         <td>{user.email}</td>
                                         <td>{user.phone || "Not provided"}</td>
@@ -269,72 +341,106 @@ function Users({ view = "all" }) {
                         </tbody>
                     </table>
                 </div>
+                {paidUsers.length > USERS_PER_PAGE && (
+                    <div className="pagination">
+                        <button
+                            type="button"
+                            disabled={paidPage === 1}
+                            onClick={() =>
+                                setPaidPage((currentPage) =>
+                                    Math.max(currentPage - 1, 1)
+                                )
+                            }
+                        >
+                            Previous
+                        </button>
+
+                        <span>
+                            Page {paidPage} of {paidTotalPages}
+                        </span>
+
+                        <button
+                            type="button"
+                            disabled={paidPage === paidTotalPages}
+                            onClick={() =>
+                                setPaidPage((currentPage) =>
+                                    Math.min(
+                                        currentPage + 1,
+                                        paidTotalPages
+                                    )
+                                )
+                            }
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </>
         );
     }
     return (
-    <section className="user-section">
-      <div className="user-header">
-        <div>
-          <h1>{getPageTitle()}</h1>
-        </div>
-      </div>
+        <section className="user-section">
+            <div className="user-header">
+                <div>
+                    <h1>{getPageTitle()}</h1>
+                </div>
+            </div>
 
-      <div className="user-search-box">
-        <input
-          type="text"
-          placeholder="Search by name, email, or phone"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+            <div className="user-search-box">
+                <input
+                    type="text"
+                    placeholder="Search by name, email, or phone"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
 
-        <button
-          type="button"
-          onClick={() => {
-            setSearch("");
-          }}
-        >
-          Clear
-        </button>
-      </div>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setSearch("");
+                    }}
+                >
+                    Clear
+                </button>
+            </div>
 
-      {view === "all" && (
-        <div className="user-stats">
-          <div className="stat-card">
-            <h3>Total Users</h3>
-            <p>{users.length - 1}</p>
-          </div>
+            {view === "all" && (
+                <div className="user-stats">
+                    <div className="stat-card">
+                        <h3>Total Users</h3>
+                        <p>{totalUsersCount}</p>
+                    </div>
 
-          <div className="stat-card">
-            <h3>Free Users</h3>
-            <p>{freeUsers.length}</p>
-          </div>
+                    <div className="stat-card">
+                        <h3>Free Users</h3>
+                        <p>{freeUsersCount}</p>
+                    </div>
 
-          <div className="stat-card">
-            <h3>Paid Users</h3>
-            <p>{paidUsers.length}</p>
-          </div>
+                    <div className="stat-card">
+                        <h3>Paid Users</h3>
+                        <p>{paidUsersCount}</p>
+                    </div>
 
-          <div className="stat-card">
-            <h3>Blocked Users</h3>
-            <p>{users.filter((user) => user.isBlocked).length}</p>
-          </div>
-        </div>
-      )}
+                    <div className="stat-card">
+                        <h3>Blocked Users</h3>
+                        <p>{blockedUsersCount}</p>
+                    </div>
+                </div>
+            )}
 
-      <div className="user-body">
-        {view === "all" && (
-          <>
-            {renderFreeUsersTable()}
-            {renderPaidUsersTable()}
-          </>
-        )}
+            <div className="user-body">
+                {view === "all" && (
+                    <>
+                        {renderFreeUsersTable()}
+                        {renderPaidUsersTable()}
+                    </>
+                )}
 
-        {view === "free" && renderFreeUsersTable()}
+                {view === "free" && renderFreeUsersTable()}
 
-        {view === "pro" && renderPaidUsersTable()}
-      </div>
-    </section>
-  );
+                {view === "pro" && renderPaidUsersTable()}
+            </div>
+        </section>
+    );
 }
 export default Users;

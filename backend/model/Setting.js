@@ -7,6 +7,10 @@ module.exports=(sequelize,Sequelize)=>{
         paidAmount:{
             type:Sequelize.INTEGER,
             defaultValue:99
+        },
+        proUses:{
+            type:Sequelize.INTEGER,
+            defaultValue:10
         }
     });
     return Setting;

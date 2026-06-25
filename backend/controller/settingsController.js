@@ -14,7 +14,8 @@ router.get("/",authenticateToken,adminOnly,async(req,res)=>{
         if(!settings){
             settings=await Setting.create({
                 freeTrialUses:3,
-                paidAmount:99
+                paidAmount:99,
+                proUses:10
             })
         }
         res.json(settings);
@@ -30,12 +31,14 @@ router.put("/",authenticateToken,adminOnly,async(req,res)=>{
         if(!settings){
             settings=await Setting.create({
                 freeTrialUses,
-                paidAmount
+                paidAmount,
+                proUses
             });
         }else{
             await settings.update({
                 freeTrialUses,
-                paidAmount
+                paidAmount,
+                proUses
             });
         }
         res.json({

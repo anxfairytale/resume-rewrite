@@ -217,7 +217,7 @@ function ResumeCustomizationBox({
           <div className="customization-confirm-actions">
             <button
               type="button"
-              className="customization-confirm-btn"
+              className="suggestion-btn suggestion-btn-apply"
               onClick={confirmContentChange}
               disabled={isUpdating}
             >
@@ -226,7 +226,7 @@ function ResumeCustomizationBox({
 
             <button
               type="button"
-              className="customization-cancel-btn"
+              className="suggestion-btn suggestion-btn-dismiss"
               onClick={() => setPendingContentChange(null)}
               disabled={isUpdating}
             >
@@ -249,7 +249,7 @@ function ResumeCustomizationBox({
         ))}
       </div>
 
-      <div className="customization-input-row">
+      <div className="customization-input-area">
         <textarea
           value={instruction}
           onChange={(event) => setInstruction(event.target.value)}
@@ -259,14 +259,16 @@ function ResumeCustomizationBox({
           disabled={isUpdating}
         />
 
-        <button
-          type="button"
-          className="customization-apply-btn"
-          onClick={customizeResume}
-          disabled={isUpdating || !instruction.trim()}
-        >
-          {isUpdating ? "Updating..." : "Apply"}
-        </button>
+        <div className="customization-submit-row">
+          <button
+            type="button"
+            className="customization-apply-btn"
+            onClick={customizeResume}
+            disabled={isUpdating || !instruction.trim()}
+          >
+            {isUpdating ? "Updating..." : "Apply"}
+          </button>
+        </div>
       </div>
 
       <p className="customization-hint">

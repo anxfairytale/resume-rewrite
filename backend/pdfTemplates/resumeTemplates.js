@@ -1103,55 +1103,13 @@ function drawExecutiveTemplate(
     doc.page.margins.left -
     doc.page.margins.right;
 
-  const headerHeight = 108;
+  const fullName =
+    data.fullName ||
+    "Candidate Name";
 
-  if (colors.background) {
-    doc
-      .rect(
-        0,
-        0,
-        doc.page.width,
-        headerHeight
-      )
-      .fill(colors.background);
-  }
-
-  doc
-    .font(fonts.bold)
-    .fontSize(style.nameFontSize)
-    .fillColor(colors.name)
-    .text(
-      data.fullName ||
-        "Candidate Name",
-      contentX,
-      26,
-      {
-        width: contentWidth,
-        align:
-          style.headerAlignment,
-      }
-    );
-
-  doc
-    .font(fonts.regular)
-    .fontSize(
-      Math.max(
-        style.bodyFontSize + 1.5,
-        10
-      )
-    )
-    .fillColor(colors.title)
-    .text(
-      data.title ||
-        "Professional Candidate",
-      contentX,
-      60,
-      {
-        width: contentWidth,
-        align:
-          style.headerAlignment,
-      }
-    );
+  const professionalTitle =
+    data.title ||
+    "Professional Candidate";
 
   const contact = [
     data.email,
@@ -1167,29 +1125,143 @@ function drawExecutiveTemplate(
       )
     );
 
+  const nameY = 24;
+  const nameLineGap = 1;
+  const titleLineGap = 2;
+  const contactLineGap = 2;
+
+  const titleFontSize =
+    Math.max(
+      style.bodyFontSize + 1.5,
+      10
+    );
+
+  const contactFontSize =
+    Math.max(
+      style.bodyFontSize - 1.5,
+      8
+    );
+  doc
+    .font(fonts.bold)
+    .fontSize(style.nameFontSize);
+
+  const nameHeight =
+    doc.heightOfString(
+      fullName,
+      {
+        width: contentWidth,
+        align:
+          style.headerAlignment,
+        lineGap: nameLineGap,
+      }
+    );
+
+  const titleY =
+    nameY + nameHeight + 5;
+
+  doc
+    .font(fonts.regular)
+    .fontSize(titleFontSize);
+
+  const titleHeight =
+    doc.heightOfString(
+      professionalTitle,
+      {
+        width: contentWidth,
+        align:
+          style.headerAlignment,
+        lineGap: titleLineGap,
+      }
+    );
+
+  const contactY =
+    titleY + titleHeight + 7;
+
+  doc
+    .font(fonts.regular)
+    .fontSize(contactFontSize);
+
+  const contactHeight =
+    contact
+      ? doc.heightOfString(
+          contact,
+          {
+            width: contentWidth,
+            align:
+              style.headerAlignment,
+            lineGap:
+              contactLineGap,
+          }
+        )
+      : 0;
+  const headerHeight =
+    contact
+      ? contactY +
+        contactHeight +
+        16
+      : titleY +
+        titleHeight +
+        16;
+  if (colors.background) {
+    doc
+      .rect(
+        0,
+        0,
+        doc.page.width,
+        headerHeight
+      )
+      .fill(colors.background);
+  }
+  doc
+    .font(fonts.bold)
+    .fontSize(style.nameFontSize)
+    .fillColor(colors.name)
+    .text(
+      fullName,
+      contentX,
+      nameY,
+      {
+        width: contentWidth,
+        align:
+          style.headerAlignment,
+        lineGap: nameLineGap,
+      }
+    );
+  doc
+    .font(fonts.regular)
+    .fontSize(titleFontSize)
+    .fillColor(colors.title)
+    .text(
+      professionalTitle,
+      contentX,
+      titleY,
+      {
+        width: contentWidth,
+        align:
+          style.headerAlignment,
+        lineGap: titleLineGap,
+      }
+    );
   if (contact) {
     doc
       .font(fonts.regular)
-      .fontSize(
-        Math.max(
-          style.bodyFontSize - 1.5,
-          8
-        )
-      )
+      .fontSize(contactFontSize)
       .fillColor(colors.contact)
       .text(
         contact,
         contentX,
-        82,
+        contactY,
         {
           width: contentWidth,
           align:
             style.headerAlignment,
+          lineGap:
+            contactLineGap,
         }
       );
   }
-
-  doc.y = headerHeight + 7;
+  doc.y =
+    headerHeight + 7;
 
   renderMainSections(
     doc,

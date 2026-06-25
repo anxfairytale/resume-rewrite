@@ -177,21 +177,11 @@ function Login({ embedded = false, onAuthSuccess }) {
     <section className={embedded ? "auth-embedded" : "auth-page"}>
       <div className="auth-card">
         <div className="auth-brand">
-          <div className="auth-logo">R</div>
+          <div className="auth-logo"><img src="../assets/logo.png"/></div>
           <div>
             <h1>Resume AI</h1>
             <p>Rewrite resumes with AI assistance</p>
           </div>
-        </div>
-
-        <div className="auth-heading">
-          <p className="eyebrow">{isSignup ? "Create Account" : "Welcome Back"}</p>
-          <h2>{isSignup ? "Sign up" : "Login"}</h2>
-          <p>
-            {isSignup
-              ? "Create an account to start rewriting resumes safely."
-              : "Login to generate and download your rewritten resume."}
-          </p>
         </div>
 
         <form onSubmit={handleAuth} className="auth-form">

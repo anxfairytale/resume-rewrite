@@ -113,7 +113,92 @@ const TEMPLATE_STYLE_DEFAULTS = {
 
     hiddenSections: [],
   },
+    "executive-navy": {
+    accentColor: "#17324d",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 25,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
 
+    headerAlignment: "left",
+    headerBackground: "tint",
+
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "inline",
+    contactSeparator: "pipe",
+
+    sectionOrder: [
+      ...DEFAULT_SECTION_ORDER,
+    ],
+
+    hiddenSections: [],
+  },
+
+  "executive-brown": {
+    accentColor: "#6b4423",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 25,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
+
+    headerAlignment: "left",
+    headerBackground: "tint",
+
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "inline",
+    contactSeparator: "pipe",
+
+    sectionOrder: [
+      ...DEFAULT_SECTION_ORDER,
+    ],
+
+    hiddenSections: [],
+  },
+
+  "executive-forest": {
+    accentColor: "#245440",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 25,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
+
+    headerAlignment: "left",
+    headerBackground: "tint",
+
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "inline",
+    contactSeparator: "pipe",
+
+    sectionOrder: [
+      ...DEFAULT_SECTION_ORDER,
+    ],
+
+    hiddenSections: [],
+  },
   classic: {
     accentColor: "#111827",
     fontFamily: "Helvetica",
@@ -578,7 +663,7 @@ async function customizeResumeStyleWithAI({
 
   const response =
     await client.responses.create({
-      model: "gpt-5.5",
+      model: "gpt-5.4-mini",
 
       input: [
         {
@@ -1037,9 +1122,6 @@ contactSeparator:
               change.value.trim(),
           }))
       : [];
-
-  // A content operation is only accepted when
-  // at least one valid skill change exists.
   const finalAccepted =
     isContentOperation
       ? isAccepted &&
@@ -1175,7 +1257,7 @@ Return JSON in this exact structure:
 `;
 
   const response = await client.responses.create({
-    model: "gpt-5.5",
+    model: "gpt-5.4-mini",
     input: prompt,
   });
 

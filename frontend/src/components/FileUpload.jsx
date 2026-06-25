@@ -35,12 +35,12 @@ function FileUpload({ resumeFile, setResumeFile }) {
     const maxSize = 5 * 1024 * 1024; 
 
     if (file.type !== allowedType) {
-      alert("Only PDF resumes are allowed.");
+      toast.error("Only PDF resumes are allowed.");
       return;
     }
 
     if (file.size > maxSize) {
-      alert("File size should be below 5MB.");
+      toast.error("File size should be below 5MB.");
       return;
     }
 

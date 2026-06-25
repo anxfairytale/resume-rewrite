@@ -1,6 +1,6 @@
 import React from "react";
 import { useState } from "react";
-import authApi , {BASE_URL} from "../services/api";
+import authApi, { BASE_URL } from "../services/api";
 import { toast } from "react-toastify";
 function ResumeEditor({ resumeData, setResumeData }) {
   const [improvingField, setImprovingField] = useState(null);
@@ -321,9 +321,6 @@ function ResumeEditor({ resumeData, setResumeData }) {
             onChange={(e) => updateField("phone", e.target.value)}
           />
         </div>
-      </div>
-
-      <div className="editor-grid-2">
         <div className="editor-card">
           <label className="input-label">Location</label>
           <input
@@ -332,7 +329,6 @@ function ResumeEditor({ resumeData, setResumeData }) {
             onChange={(e) => updateField("location", e.target.value)}
           />
         </div>
-
         <div className="editor-card">
           <label className="input-label">LinkedIn</label>
           <input
@@ -342,7 +338,6 @@ function ResumeEditor({ resumeData, setResumeData }) {
           />
         </div>
       </div>
-
       <div className="editor-card">
         <label className="input-label">Portfolio / GitHub</label>
         <input
@@ -367,7 +362,7 @@ function ResumeEditor({ resumeData, setResumeData }) {
         {renderSuggestion("summary", () => applySuggestion("summary"))}
       </div>
 
-      <div className="editor-card">
+      <div className="editor-card skills-editor-card">
         <div className="editor-section-top">
           <label className="input-label">Skills</label>
           <button
@@ -378,32 +373,32 @@ function ResumeEditor({ resumeData, setResumeData }) {
             Add Skill
           </button>
         </div>
-
-        {(resumeData.skills || []).map((skill, index) => (
-          <div key={index} className="array-item-block">
-            <div className="editor-row">
-              <input
-                className="editor-input"
-                value={skill}
-                onChange={(e) => updateArrayItem("skills", index, e.target.value)}
-              />
-              <button type="button" className="ai-btn small-ai-btn"
-                onClick={() => improveArrayItem("skills", index, skill)}
-                disabled={improvingField === `skills-${index}`}>{improvingField === `skills-${index}` ? "..." : "AI"}</button>
-              <button
-                type="button"
-                className="remove-small-btn"
-                onClick={() => removeArrayItem("skills", index)}
-              >
-                ×
-              </button>
+        <div className="skills-scroll-area">
+          {(resumeData.skills || []).map((skill, index) => (
+            <div key={index} className="array-item-block">
+              <div className="editor-row">
+                <input
+                  className="editor-input"
+                  value={skill}
+                  onChange={(e) => updateArrayItem("skills", index, e.target.value)}
+                />
+                <button type="button" className="ai-btn small-ai-btn"
+                  onClick={() => improveArrayItem("skills", index, skill)}
+                  disabled={improvingField === `skills-${index}`}>{improvingField === `skills-${index}` ? "..." : "✦"}</button>
+                <button
+                  type="button"
+                  className="remove-small-btn"
+                  onClick={() => removeArrayItem("skills", index)}
+                >
+                  ×
+                </button>
+              </div>
+              {renderSuggestion(`skills-${index}`, () =>
+                applyArraySuggestion("skills", index)
+              )}
             </div>
-            {renderSuggestion(`skills-${index}`, () =>
-              applyArraySuggestion("skills", index)
-            )}
-          </div>
-
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="editor-card">
@@ -424,103 +419,105 @@ function ResumeEditor({ resumeData, setResumeData }) {
             Add Experience
           </button>
         </div>
+        <div className="section-scroll-area">
+          {(resumeData.experience || []).map((exp, expIndex) => (
+            <div className="nested-block" key={expIndex}>
+              <input
+                className="editor-input"
+                placeholder="Role"
+                value={exp.role || ""}
+                onChange={(e) =>
+                  updateNested("experience", expIndex, "role", e.target.value)
+                }
+              />
 
-        {(resumeData.experience || []).map((exp, expIndex) => (
-          <div className="nested-block" key={expIndex}>
-            <input
-              className="editor-input"
-              placeholder="Role"
-              value={exp.role || ""}
-              onChange={(e) =>
-                updateNested("experience", expIndex, "role", e.target.value)
-              }
-            />
+              <input
+                className="editor-input"
+                placeholder="Company"
+                value={exp.company || ""}
+                onChange={(e) =>
+                  updateNested("experience", expIndex, "company", e.target.value)
+                }
+              />
 
-            <input
-              className="editor-input"
-              placeholder="Company"
-              value={exp.company || ""}
-              onChange={(e) =>
-                updateNested("experience", expIndex, "company", e.target.value)
-              }
-            />
+              <input
+                className="editor-input"
+                placeholder="Duration"
+                value={exp.duration || ""}
+                onChange={(e) =>
+                  updateNested("experience", expIndex, "duration", e.target.value)
+                }
+              />
 
-            <input
-              className="editor-input"
-              placeholder="Duration"
-              value={exp.duration || ""}
-              onChange={(e) =>
-                updateNested("experience", expIndex, "duration", e.target.value)
-              }
-            />
+              <p className="small-label">Bullets</p>
 
-            <p className="small-label">Bullets</p>
+              {(exp.bullets || []).map((bullet, bulletIndex) => {
+                const fieldKey = `experience-${expIndex}-bullet-${bulletIndex}`;
 
-            {(exp.bullets || []).map((bullet, bulletIndex) => {
-              const fieldKey = `experience-${expIndex}-bullet-${bulletIndex}`;
+                return (
+                  <div key={bulletIndex} className="array-item-block">
+                    <div className="editor-row">
+                      <textarea
+                        className="editor-textarea small-textarea"
+                        value={bullet}
+                        onChange={(e) =>
+                          updateBullet(
+                            "experience",
+                            expIndex,
+                            bulletIndex,
+                            e.target.value
+                          )
+                        }
+                      />
 
-              return (
-                <div key={bulletIndex} className="array-item-block">
-                  <div className="editor-row">
-                    <textarea
-                      className="editor-textarea small-textarea"
-                      value={bullet}
-                      onChange={(e) =>
-                        updateBullet(
-                          "experience",
-                          expIndex,
-                          bulletIndex,
-                          e.target.value
-                        )
-                      }
-                    />
+                      <button
+                        type="button"
+                        className="ai-btn small-ai-btn"
+                        onClick={() =>
+                          improveBullet("experience", expIndex, bulletIndex, bullet)
+                        }
+                        disabled={improvingField === fieldKey}
+                      >
+                        {improvingField === fieldKey ? "..." : "✦"}
+                      </button>
 
-                    <button
-                      type="button"
-                      className="ai-btn small-ai-btn"
-                      onClick={() =>
-                        improveBullet("experience", expIndex, bulletIndex, bullet)
-                      }
-                      disabled={improvingField === fieldKey}
-                    >
-                      {improvingField === fieldKey ? "..." : "AI"}
-                    </button>
+                      <button
+                        type="button"
+                        className="remove-small-btn"
+                        onClick={() =>
+                          removeBullet("experience", expIndex, bulletIndex)
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
 
-                    <button
-                      type="button"
-                      className="remove-small-btn"
-                      onClick={() =>
-                        removeBullet("experience", expIndex, bulletIndex)
-                      }
-                    >
-                      ×
-                    </button>
+                    {renderSuggestion(fieldKey, () =>
+                      applyBulletSuggestion("experience", expIndex, bulletIndex)
+                    )}
                   </div>
+                );
+              })}
 
-                  {renderSuggestion(fieldKey, () =>
-                    applyBulletSuggestion("experience", expIndex, bulletIndex)
-                  )}
-                </div>
-              );
-            })}
+              <button
+                type="button"
+                className="mini-btn"
+                onClick={() => addBullet("experience", expIndex)}
+              >
+                Add Bullet
+              </button>
 
-            <button
-              type="button"
-              className="mini-btn"
-              onClick={() => addBullet("experience", expIndex)}
-            >
-              Add Bullet
-            </button>
+              <button
+                type="button"
+                className="remove-section-btn"
+                onClick={() => removeArrayItem("experience", expIndex)}
+              >
+                Remove Experience
+              </button>
+            </div>
+          ))}
+        </div>
 
-            <button
-              type="button"
-              className="remove-section-btn"
-              onClick={() => removeArrayItem("experience", expIndex)}
-            >
-              Remove Experience
-            </button>
-          </div>
-        ))}
       </div>
 
       <div className="editor-card">
@@ -539,8 +536,8 @@ function ResumeEditor({ resumeData, setResumeData }) {
             Add Project
           </button>
         </div>
-
-        {(resumeData.projects || []).map((project, index) => {
+            <div className="section-scroll-area">
+              {(resumeData.projects || []).map((project, index) => {
           const fieldKey = `projects-${index}-description`;
 
           return (
@@ -597,6 +594,8 @@ function ResumeEditor({ resumeData, setResumeData }) {
             </div>
           );
         })}
+            </div>
+        
       </div>
 
       <div className="editor-card">
@@ -668,8 +667,7 @@ function ResumeEditor({ resumeData, setResumeData }) {
             Add Certification
           </button>
         </div>
-
-        {(resumeData.certifications || []).map((cert, index) => (
+        <div className="section-scroll-area">{(resumeData.certifications || []).map((cert, index) => (
           <div key={index} className="array-item-block">
             <div className="editor-row" key={index}>
               <input
@@ -682,7 +680,7 @@ function ResumeEditor({ resumeData, setResumeData }) {
               <button type="button" className="ai-btn small-ai-btn"
                 onClick={() => improveArrayItem("certifications", index, cert)}
                 disabled={improvingField === `certifications-${index}`}>
-                {improvingField === `certifications-${index}` ? "..." : "AI"}
+                {improvingField === `certifications-${index}` ? "..." : "✦"}
               </button>
               <button
                 type="button"
@@ -695,6 +693,8 @@ function ResumeEditor({ resumeData, setResumeData }) {
             {renderSuggestion(`certifications-${index}`, () => applyArraySuggestion("certifications", index))}
           </div>
         ))}
+        </div>
+        
       </div>
 
       <div className="editor-card">
@@ -708,7 +708,7 @@ function ResumeEditor({ resumeData, setResumeData }) {
             Add Achievement
           </button>
         </div>
-
+        <div className="section-scroll-area">
         {(resumeData.achievements || []).map((achievement, index) => (
           <div className="array-item-block" key={index}>
             <div className="editor-row">
@@ -725,7 +725,7 @@ function ResumeEditor({ resumeData, setResumeData }) {
                 onClick={() => improveArrayItem("achievements", index, achievement)}
                 disabled={improvingField === `achievements-${index}`}
               >
-                {improvingField === `achievements-${index}` ? "..." : "AI"}
+                {improvingField === `achievements-${index}` ? "..." : "✦"}
               </button>
               <button
                 type="button"
@@ -740,6 +740,8 @@ function ResumeEditor({ resumeData, setResumeData }) {
             )}
           </div>
         ))}
+        </div>
+        
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import authApi from "../services/api";
 import MatchAnalysisModal from "./MatchAnalysisModal";
 import { toast } from "react-toastify";
 import ResumeCustomizationBox from "./ResumeCustomizationBox";
+import parentCompanyLogo from "../assets/footer.png"
 const DEFAULT_SECTION_ORDER = [
   "summary",
   "skills",
@@ -40,7 +41,71 @@ const TEMPLATE_STYLE_DEFAULTS = {
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     hiddenSections: [],
   },
+  "executive-navy": {
+    accentColor: "#17324d",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 25,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
+    headerAlignment: "left",
+    headerBackground: "tint",
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "inline",
+    contactSeparator: "pipe",
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
+    hiddenSections: [],
+  },
 
+  "executive-brown": {
+    accentColor: "#6b4423",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 25,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
+    headerAlignment: "left",
+    headerBackground: "tint",
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "inline",
+    contactSeparator: "pipe",
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
+    hiddenSections: [],
+  },
+
+  "executive-forest": {
+    accentColor: "#245440",
+    fontFamily: "Helvetica",
+    bodyFontSize: 10.5,
+    headingFontSize: 12,
+    nameFontSize: 25,
+    lineGap: 4,
+    sectionSpacing: 0.8,
+    pageMargin: 50,
+    headerAlignment: "left",
+    headerBackground: "tint",
+    showSectionLines: true,
+    dividerStyle: "solid",
+    dividerThickness: 1,
+    headingStyle: "uppercase",
+    bulletStyle: "circle",
+    skillsLayout: "inline",
+    contactSeparator: "pipe",
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
+    hiddenSections: [],
+  },
   classic: {
     accentColor: "#111827",
     fontFamily: "Helvetica",
@@ -85,7 +150,50 @@ const TEMPLATE_STYLE_DEFAULTS = {
     hiddenSections: [],
   },
 };
-
+const TEMPLATE_OPTIONS = [
+  {
+    id: "executive",
+    name: "Executive Orange",
+    description: "Elegant, warm, employer-catching.",
+    previewClass: "executive-orange-template-preview",
+    previewPdf: "/template-previews/executive-orange.pdf"
+  },
+  {
+    id: "executive-navy",
+    name: "Executive Navy",
+    description: "Formal, polished, and corporate.",
+    previewClass: "executive-navy-template-preview",
+    previewPdf: "/template-previews/executive-navy.pdf"
+  },
+  {
+    id: "executive-brown",
+    name: "Executive Brown",
+    description: "Warm, premium, and professional.",
+    previewClass: "executive-brown-template-preview",
+    previewPdf: "/template-previews/executive-brown.pdf"
+  },
+  {
+    id: "executive-forest",
+    name: "Executive Forest",
+    description: "Refined, modern, and confident.",
+    previewClass: "executive-forest-template-preview",
+    previewPdf: "/template-previews/executive-green.pdf"
+  },
+  {
+    id: "classic",
+    name: "Classic ATS",
+    description: "Clean, simple, traditional.",
+    previewClass: "classic-template-preview",
+    previewPdf: "/template-previews/classic-ats.pdf"
+  },
+  {
+    id: "sidebar",
+    name: "Modern Sidebar",
+    description: "Stylish split resume layout.",
+    previewClass: "sidebar-template-preview",
+    previewPdf: "/template-previews/modern.pdf"
+  },
+];
 function getTemplateStyle(templateName) {
   const template =
     TEMPLATE_STYLE_DEFAULTS[templateName] ||
@@ -101,6 +209,8 @@ function getTemplateStyle(templateName) {
 function Home() {
   const authSectionRef = useRef(null);
   const pdfPanelRef = useRef(null);
+  const termsPanelRef = useRef(null);
+  const [previewTemplate, setPreviewTemplate] = useState(null);
   const [pdfPanelHeight, setPdfPanelHeight] =
     useState(0);
   const [jobDescription, setJobDescription] = useState("");
@@ -133,7 +243,8 @@ function Home() {
   const isProUser = normalizedPlan === "pro";
   const freeUsesLeft = Number(user?.freeUsesLeft ?? 0);
   const proUsesLeft = Number(user?.proUsesLeft ?? 0);
-
+  const [price, setPrice] = useState(null);
+  const [loadingPrice, setLoadingPrice] = useState(false)
   const availableUses = isProUser
     ? proUsesLeft
     : freeUsesLeft;
@@ -176,6 +287,41 @@ function Home() {
       setLoadingUser(false);
     }
   }
+  async function fetchPaymentPrice() {
+  try {
+    setLoadingPrice(true);
+    const response = await authApi.get("/payment/price");
+    const paidAmount = Number(
+      response.data?.paidAmount
+    );
+    if (
+      !Number.isFinite(paidAmount) ||
+      paidAmount <= 0
+    ) {
+      throw new Error("Invalid payment price");
+    }    
+    setPrice(paidAmount);
+    return paidAmount;
+  } catch (err) {
+    console.log(
+      "Fetch payment price error:",
+      err
+    );
+    setPrice(null);
+    toast.error(
+      err.response?.data?.message ||
+        "Could not load payment price"
+    );
+    return null;
+  } finally {
+    setLoadingPrice(false);
+  }
+}
+  useEffect(() => {
+    if (paymentPopUp) {
+      fetchPaymentPrice();
+    }
+  }, [paymentPopUp]);
   useEffect(() => {
     const pdfPanel =
       pdfPanelRef.current;
@@ -232,11 +378,23 @@ function Home() {
       }, 100);
     }
   }, [searchParams]);
+  useEffect(() => {
+    setTimeout(() => {
+      termsPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      })
+    }, 100)
+  }, [dial]);
   function handleTemplateSelect(templateName) {
     setSelectedTemplate(templateName);
     setStyleConfig(getTemplateStyle(templateName));
     setStyleHistory([]);
     setPdfUrl("");
+  }
+  function handleTemplateClick(templateOption) {
+    handleTemplateSelect(templateOption.id);
+    setPreviewTemplate(templateOption);
   }
   function openAuthPanel() {
     setShowAuthPanel(true);
@@ -258,17 +416,17 @@ function Home() {
     }
 
     if (!jobDescription.trim()) {
-      alert("Please paste the job description first.");
+      toast.error("Please paste the job description first.");
       return;
     }
 
     if (!resumeFile) {
-      alert("Please upload your resume PDF first.");
+      toast.error("Please upload your resume PDF first.");
       return;
     }
 
     if (!termCheck) {
-      alert("Please accept the terms and conditions.");
+      toast.error("Please accept the terms and conditions.");
       return;
     }
 
@@ -297,7 +455,7 @@ function Home() {
       await getUser();
     } catch (err) {
       console.log(err);
-      alert(err.response?.data?.message || "Something went wrong while analyzing the resume.");
+      toast.error(err.response?.data?.message || "Something went wrong while analyzing the resume.");
     } finally {
       setAnalyzing(false);
     }
@@ -308,7 +466,7 @@ function Home() {
     }
     const completeUser = await getUser();
     if (!completeUser) {
-      alert("Could not load your account details");
+      toast.error("Could not load your account details");
       return;
     }
     setUser(completeUser);
@@ -526,11 +684,15 @@ function Home() {
       }
       const orderResponse = await authApi.post("/payment/create-order", {},);
       const order = orderResponse.data;
+      const orderPriceInRupees =
+        Number(order.amount) / 100;
+
+      setPrice(orderPriceInRupees);
       const options = {
         key: "rzp_test_T3OP1amnICZid0",
         amount: order.amount,
         currency: order.currency,
-        name: "2xResume",
+        name: "ResumeBot",
         description: "Upgrade to Pro Plan",
         order_id: order.id,
         handler: async function (response) {
@@ -541,7 +703,7 @@ function Home() {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
               },);
-            alert(verifyResponse.data.message);
+            toast.success(verifyResponse.data.message);
             if (verifyResponse.data.user) {
               localStorage.setItem("user", JSON.stringify(verifyResponse.data.user));
               setUser(verifyResponse.data.user);
@@ -552,7 +714,7 @@ function Home() {
             getUser();
           } catch (err) {
             console.log(err);
-            alert(err.response?.data?.message || "Payment verification failed");
+            toast.error(err.response?.data?.message || "Payment verification failed");
           }
         },
         prefill: {
@@ -567,7 +729,7 @@ function Home() {
       razorpayPopup.open();
     } catch (err) {
       console.log(err);
-      alert(err.response?.data?.message || "Payment failed");
+      toast.error(err.response?.data?.message || "Payment failed");
     }
   }
   async function handleRewriteClick() {
@@ -628,6 +790,17 @@ function Home() {
   }, []);
   return (
     <div className="home-page">
+      {analyzing && (
+        <div className="generation-overlay">
+          <div className="resume-loader">
+            <div className="loader-ring"></div>
+            <div>
+              <h3>Creating your resume</h3>
+              <p>Tailoring your content and preparing the document...</p>
+            </div>
+          </div>
+        </div>
+      )}
       <main className="main-page">
         {paymentPopUp && (
           <div className="modal-backdrop">
@@ -653,13 +826,30 @@ function Home() {
                 </div>
               )}
               <div className="price-box">
-                <span className="price">₹99</span>
+                <span className="price">
+                  {loadingPrice
+                    ? "Loading..."
+                    : price !== null
+                      ? `₹${price}`
+                      : "Unavailable"}
+                </span>
+
                 <span className="price-note">Pro resume credits</span>
               </div>
 
               <div className="payment-actions">
-                <button className="pay-now-btn" onClick={handlePayment}>
-                  Pay Now
+                <button
+                  type="button"
+                  className="pay-now-btn"
+                  onClick={handlePayment}
+                  disabled={
+                    loadingPrice ||
+                    price === null
+                  }
+                >
+                  {loadingPrice
+                    ? "Loading price..."
+                    : "Pay Now"}
                 </button>
 
                 <button
@@ -695,7 +885,7 @@ function Home() {
             <section className="left-section">
               {dial && (
                 <div className="modal-backdrop">
-                  <dialog className="terms-dialog" open>
+                  <dialog className="terms-dialog" open >
                     <div className="terms-header">
                       <h1>Terms and Conditions</h1>
                     </div>
@@ -706,7 +896,7 @@ function Home() {
                         {"\n\n"}
                         Last Updated: 12 June 2026
                         {"\n\n"}
-                        Welcome to 2xResume. By using this website, uploading your resume,
+                        Welcome to ResumeBot. By using this website, uploading your resume,
                         or generating a rewritten resume, you agree to the Terms and
                         Conditions.
                         {"\n\n"}
@@ -766,53 +956,34 @@ function Home() {
                 <label className="input-label">Choose Resume Template</label>
 
                 <div className="template-grid">
-                  <button
-                    type="button"
-                    className={`template-card ${selectedTemplate === "executive" ? "active-template" : ""
-                      }`}
-                    onClick={() => handleTemplateSelect("executive")}
-                  >
-                    <div className="template-preview modern-template-preview">
-                      <div></div>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                    <h3>Executive Orange</h3>
-                    <p>Elegant, warm, employer-catching.</p>
-                  </button>
+                  {TEMPLATE_OPTIONS.map((templateOption) => (
+                    <button
+                      key={templateOption.id}
+                      type="button"
+                      className={`template-card ${selectedTemplate === templateOption.id
+                        ? "active-template"
+                        : ""
+                        }`}
+                      onClick={() =>
+                        handleTemplateClick(templateOption)
+                      }
+                    >
+                      <div
+                        className={`template-preview ${templateOption.previewClass}`}
+                      >
+                        <div></div>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
 
-                  <button
-                    type="button"
-                    className={`template-card ${selectedTemplate === "classic" ? "active-template" : ""
-                      }`}
-                    onClick={() => handleTemplateSelect("classic")}
-                  >
-                    <div className="template-preview classic-template-preview">
-                      <div></div>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                    <h3>Classic ATS</h3>
-                    <p>Clean, simple, traditional.</p>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`template-card ${selectedTemplate === "sidebar" ? "active-template" : ""
-                      }`}
-                    onClick={() => handleTemplateSelect("sidebar")}
-                  >
-                    <div className="template-preview sidebar-template-preview">
-                      <div></div>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                    <h3>Modern Sidebar</h3>
-                    <p>Stylish split resume layout.</p>
-                  </button>
+                      <h3>{templateOption.name}</h3>
+                      <p>{templateOption.description}</p>
+                      <span className="template-card-preview-label">
+                        Click to preview
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -859,7 +1030,7 @@ function Home() {
                   <div className="inline-auth-header">
                     <div>
                       <p className="eyebrow">Account</p>
-                      <h2>Continue with 2xResume</h2>
+                      <h2>Continue with ResumeBot</h2>
                       <p>
                         Log in or create an account to rewrite and save your
                         resume.
@@ -985,10 +1156,10 @@ function Home() {
             )}
             <div className="editor-preview-layout">
               <section className="editor-panel">
-                  <ResumeEditor
-                    resumeData={resumeData}
-                    setResumeData={setResumeData}
-                  />
+                <ResumeEditor
+                  resumeData={resumeData}
+                  setResumeData={setResumeData}
+                />
               </section>
 
               <section className="pdf-panel" ref={pdfPanelRef}>
@@ -1028,6 +1199,85 @@ function Home() {
           </section>
         )}
       </main>
+      <footer className="site-footer">
+        <div className="footer-content">
+          <div className="footer-company">
+            <img src={parentCompanyLogo} className="footer-logo" />
+            <div>
+              <p className="footer-powered-by">A product by</p>
+              <h3>2xSmart Solutions Pvt Ltd</h3>
+              <p className="footer-description">
+                Building thoughtful digital solutions for modern businesses.
+              </p>
+            </div>
+          </div>
+          <div className="footer-contact">
+            <h3>Contact Us</h3>
+            <a href="mailto: poornima@2xsmart.com">
+              <span className="footer-contact-icon">✉</span>
+              poornima@2xsmart.com
+            </a>
+            <a href="tel:+919384898964">
+              <span className="footer-contact-icon">☎</span>
+              +91 9384898964
+            </a>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <p> © {new Date().getFullYear()} 2xSmart Solutions Pvt Ltd. All rights
+            reserved.</p>
+        </div>
+      </footer>
+      {previewTemplate && (
+        <div
+          className="template-preview-backdrop"
+          onClick={() => setPreviewTemplate(null)}
+        >
+          <div
+            className="template-preview-dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="template-preview-dialog-header">
+              <div>
+                <p className="eyebrow">Template preview</p>
+                <h2>{previewTemplate.name}</h2>
+                <p>{previewTemplate.description}</p>
+              </div>
+
+              <button
+                type="button"
+                className="template-preview-close"
+                onClick={() => setPreviewTemplate(null)}
+                aria-label="Close template preview"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="template-pdf-container">
+              <iframe
+                src={`${previewTemplate.previewPdf}#toolbar=0&navpanes=0`}
+                title={`${previewTemplate.name} preview`}
+                className="template-pdf-frame"
+              />
+            </div>
+
+            <div className="template-preview-dialog-actions">
+              <span className="template-selected-message">
+                ✓ {previewTemplate.name} selected
+              </span>
+
+              <button
+                type="button"
+                className="template-preview-done-btn"
+                onClick={() => setPreviewTemplate(null)}
+              >
+                Use this template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

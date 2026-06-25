@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import authApi from "../services/api";
 import "../styles/Profile.css";
 import { toast } from "react-toastify";
+const RESUMES_PER_PAGE = 3;
 function Profile() {
   const [profile, setProfile] = useState(null);
   const [editMode, setEditMode] = useState(false);
-
+  const [currentPage, setCurrentPage] = useState(1);
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
   const [loc, setLoc] = useState("");
@@ -13,12 +14,15 @@ function Profile() {
   const [messageType, setMessageType] = useState("");
   const [resumes, setResumes] = useState([]);
   const [dial, setDial] = useState(false);
-  const [resumeToDelete, setResumeToDelete] = useState(false);
+  const [resumeToDelete, setResumeToDelete] = useState(null);
+  const totalPages = Math.max(1, Math.ceil(resumes.length / RESUMES_PER_PAGE));
+  const startIndex = (currentPage - 1) * RESUMES_PER_PAGE;
+  const currentResumes = resumes.slice(startIndex, startIndex + RESUMES_PER_PAGE);
   async function fetchMyResumes() {
     try {
-      const token = localStorage.getItem("token");
       const res = await authApi.get("/resume/my-resumes", {});
-      setResumes(res.data);
+      setResumes(Array.isArray(res.data) ? res.data : []);
+      setCurrentPage(1);
     } catch (err) {
       console.log(err);
       ("Could not load resume history", "error");
@@ -28,6 +32,17 @@ function Profile() {
     fetchProfile();
     fetchMyResumes();
   }, []);
+  useEffect(() => {
+    const lastAvailablePage = Math.max(
+      1,
+      Math.ceil(
+        resumes.length / RESUMES_PER_PAGE
+      )
+    );
+    if (currentPage > lastAvailablePage) {
+      setCurrentPage(lastAvailablePage);
+    }
+  }, [resumes.length, currentPage]);
   function openDeleteDialog(resumeId) {
     setResumeToDelete(resumeId);
     setDial(true);
@@ -73,30 +88,30 @@ function Profile() {
   }
 
   async function updateProfile(e) {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const res = await authApi.put("/auth/profile", {
-      name,
-      dob,
-      loc,
-    });
+    try {
+      const res = await authApi.put("/auth/profile", {
+        name,
+        dob,
+        loc,
+      });
 
-    setProfile((previousProfile) => ({
-      ...previousProfile,
-      ...res.data.user,
-    }));
+      setProfile((previousProfile) => ({
+        ...previousProfile,
+        ...res.data.user,
+      }));
 
-    setEditMode(false);
-    toast.success(res.data.message || "Profile updated successfully");
-  } catch (err) {
-    console.log(err);
+      setEditMode(false);
+      toast.success(res.data.message || "Profile updated successfully");
+    } catch (err) {
+      console.log(err);
 
-    toast.error(
-      err.response?.data?.message || "Could not update profile"
-    );
+      toast.error(
+        err.response?.data?.message || "Could not update profile"
+      );
+    }
   }
-}
   if (!profile) {
     return (
       <section className="profile-page">
@@ -154,11 +169,11 @@ function Profile() {
                   </div>
                   <div className="profile-info-box">
                     <span>Phone No</span>
-                    <p><p>
+                    <p>
                       {profile.phone
                         ? `${profile.phone.slice(0, 2)}*****${profile.phone.slice(-3)}`
                         : "Not provided"}
-                    </p></p>
+                    </p>
                   </div>
                   <div className="profile-info-box">
                     <span>Location</span>
@@ -246,62 +261,140 @@ function Profile() {
             )}
             <p className="profile-eyebrow">Resume History</p>
             {resumes.length > 0 ? (
-              <div className="resume-list">
-                {resumes.map((resume) => (
-                  <div className="resume-item" key={resume.id}>
-                    <div className="resume-item-top">
-                      <div>
-                        <h3>{resume.originalFileName}</h3>
-                        <p>
-                          Generated on{" "}
-                          {new Date(resume.createdAt).toLocaleDateString()}
-                        </p>
+              <>
+                <div className="resume-history-summary">
+                  <span>
+                    Showing {startIndex + 1}–
+                    {Math.min(
+                      startIndex + RESUMES_PER_PAGE,
+                      resumes.length
+                    )}{" "}
+                    of {resumes.length} resumes
+                  </span>
+                </div>
+
+                <div className="resume-list">
+                  {currentResumes.map((resume) => (
+                    <div
+                      className="resume-item"
+                      key={resume.id}
+                    >
+                      <div className="resume-item-top">
+                        <div>
+                          <h3>
+                            {resume.originalFileName ||
+                              "Generated Resume"}
+                          </h3>
+
+                          <p>
+                            Generated on{" "}
+                            {new Date(
+                              resume.createdAt
+                            ).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        <span className="resume-template-pill">
+                          {resume.template || "modern"}
+                        </span>
                       </div>
 
-                      <span className="resume-template-pill">
-                        {resume.template || "modern"}
-                      </span>
+                      {resume.jobDescription && (
+                        <p className="resume-job-preview">
+                          {resume.jobDescription.slice(
+                            0,
+                            150
+                          )}
+                          {resume.jobDescription.length >
+                            150
+                            ? "..."
+                            : ""}
+                        </p>
+                      )}
+
+                      <div className="resume-actions">
+                        <a
+                          href={resume.generatedPdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="profile-primary-btn"
+                        >
+                          View PDF
+                        </a>
+
+                        <a
+                          href={resume.generatedPdfUrl}
+                          download
+                          className="profile-secondary-btn"
+                        >
+                          Download
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openDeleteDialog(resume.id)
+                          }
+                          className="profile-secondary-btn delete-resume-btn"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
+                  ))}
+                </div>
 
-                    <p className="resume-job-preview">
-                      {resume.jobDescription?.slice(0, 150)}...
-                    </p>
+                {totalPages > 1 && (
+                  <div className="resume-pagination">
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      disabled={currentPage === 1}
+                      onClick={() =>
+                        setCurrentPage((previous) =>
+                          Math.max(previous - 1, 1)
+                        )
+                      }
+                    >
+                      ← Previous
+                    </button>
 
-                    <div className="resume-actions">
-                      <a
-                        href={resume.generatedPdfUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="profile-primary-btn"
-                      >
-                        View PDF
-                      </a>
+                    <span className="pagination-info">
+                      Page {currentPage} of {totalPages}
+                    </span>
 
-                      <a
-                        href={resume.generatedPdfUrl}
-                        download
-                        className="profile-secondary-btn"
-                      >
-                        Download
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => openDeleteDialog(resume.id)}
-                        className="profile-secondary-btn delete-resume-btn"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      disabled={
+                        currentPage === totalPages
+                      }
+                      onClick={() =>
+                        setCurrentPage((previous) =>
+                          Math.min(
+                            previous + 1,
+                            totalPages
+                          )
+                        )
+                      }
+                    >
+                      Next →
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : (
               <div className="empty-resume-box">
-                <div className="empty-resume-icon">📄</div>
+                <div className="empty-resume-icon">
+                  📄
+                </div>
+
                 <h3>No resumes yet</h3>
+
                 <p>
-                  Once you upload a resume and generate a rewritten version, your
-                  history will show here.
+                  Once you upload a resume and generate
+                  a rewritten version, your history will
+                  show here.
                 </p>
               </div>
             )}
